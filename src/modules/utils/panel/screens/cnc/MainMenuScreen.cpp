@@ -27,6 +27,8 @@
 #include "StepperMotor.h"
 #include "EndstopsPublicAccess.h"
 #include "LaserScreen.h"
+#include "DirHandle.h"
+#include "mbed.h"
 
 #include <string>
 using namespace std;
@@ -35,6 +37,13 @@ using namespace std;
 
 MainMenuScreen::MainMenuScreen()
 {
+	//we need to scan the sd card for the menu system
+
+	if (THEPANEL->internal_sd != nullptr){
+		//The SD Card is OK so lets start from the root and build a menu
+	    // reset to root directory, I think this is less confusing
+	    this->enter_folder("/sd/menu/main");
+	}
     // Children screens
     this->jog_screen     = (new JogScreen()     )->set_parent(this);
     this->watch_screen   = (new WatchScreen()   )->set_parent(this);
@@ -111,16 +120,63 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
-    switch ( line ) {
-        case 0: THEPANEL->lcd->printf("DRO"); break;
-        case 1: if(THEKERNEL->is_halted()) THEPANEL->lcd->printf("Clear HALT"); else THEPANEL->lcd->printf(THEPANEL->is_playing() ? "Abort" : "Play"); break;
-        case 2: THEPANEL->lcd->printf("Jog"); break;
-        case 3: THEPANEL->lcd->printf("Prepare"); break;
-        case 4: THEPANEL->lcd->printf("Custom"); break;
-        case 5: THEPANEL->lcd->printf("Configure"); break;
-        case 6: THEPANEL->lcd->printf("Probe"); break;
-        case 7: THEPANEL->lcd->printf("Laser"); break; // only used if THEPANEL->has_laser()
-    }
+	//we need to read the nth file in the current menu directory, open the file and interpret it.
+	if ( line == 0 ) {
+	        THEPANEL->lcd->printf("..");
+	    } else {
+	        bool isdir;
+//	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 18).c_str());
+	        //make sure the path ends in a '/' note I could not .append ( ).append( ) as the second append never got added, no idea why!
+	        if (THEKERNEL->current_path.back() != '/')
+	            this->filename = THEKERNEL->current_path + '/' + this->file_at(line - 1, isdir).substr(0, max_path_length);
+	        else
+	           	this->filename = THEKERNEL->current_path + this->file_at(line - 1, isdir).substr(0, max_path_length);
+	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 19).c_str()); //TODO 19 should not be hard wired, it should the the panel character width - 2 places
+	        //this->filename.append(this->file_at(line - 1, isdir).substr(0, 18));
+//	        if(isdir) {
+//	            if(fn.size() >= 18) fn.back()= '/';
+//	            else fn.append("/");
+//	        }
+	        if(!isdir) {
+	            //THEPANEL->lcd->printf("%s", this->filename.c_str());
+	            //Now we need to open the file and interpret its contents
+
+	            char buf[130]; // lines up to 128 characters are allowed, anything longer is discarded
+	            bool discard = false;
+
+//	            if(this->current_file_handler != NULL) { //just in case it is open
+//	                fclose(this->current_file_handler);
+//	            }
+
+	            this->current_file_handler = fopen( this->filename.c_str(), "r");
+	            if(this->current_file_handler == NULL) {
+	                //stream->printf("File not found: %s\r\n", this->filename.c_str());
+	                return;
+	            }
+	            while(fgets(buf, sizeof(buf), this->current_file_handler) != NULL) {
+	                int len = strlen(buf);
+	                if(len == 0) continue; // empty line? should not be possible
+	                if(buf[len - 1] == '\n' || feof(this->current_file_handler)) {
+	                    if(discard) { // we are discarding a long line
+	                        discard = false;
+	                        continue;
+	                    }
+	                    if(len == 1) continue; // empty line
+
+	    	               //THEPANEL->lcd->printf("%s", buf);
+
+	                    break; // we feed one line per main loop, need to expand later
+
+	                } else {
+	                    // discard long line
+	                    //this->current_stream->printf("Warning: Discarded long line\n");
+	                    discard = true;
+	                }
+	            }
+
+	            fclose(this->current_file_handler);
+	        }
+	    }
 }
 
 void MainMenuScreen::clicked_menu_entry(uint16_t line)
@@ -149,3 +205,67 @@ void MainMenuScreen::abort_playing()
     THEPANEL->enter_screen(this->watch_screen);
 }
 
+// Enter a new folder
+void MainMenuScreen::enter_folder(const char *folder)
+{
+    // Remember where we are
+    THEKERNEL->current_path= folder;
+
+    // We need the number of lines to setup the menu
+    uint16_t number_of_files_in_folder = this->count_folder_content();
+
+    // Setup menu
+    THEPANEL->setup_menu(number_of_files_in_folder + 1); // same number of files as menu items
+    THEPANEL->enter_menu_mode();
+
+    // Display menu
+    this->refresh_menu();
+}
+
+// Count how many files there are in the current folder that have a .txt in them and does not start with a .
+uint16_t MainMenuScreen::count_folder_content()
+{
+    DIR *d;
+    struct dirent *p;
+    uint16_t count = 0;
+    d = opendir(THEKERNEL->current_path.c_str());
+    if (d != NULL) {
+        while ((p = readdir(d)) != NULL) {
+            if((p->d_isdir && p->d_name[0] != '.') || filter_file(p->d_name)) count++;
+        }
+        closedir(d);
+        return count;
+    }
+    return 0;
+}
+
+// Find the "line"th file in the current folder
+string MainMenuScreen::file_at(uint16_t line, bool& isdir)
+{
+    DIR *d;
+    struct dirent *p;
+    uint16_t count = 0;
+    d = opendir(THEKERNEL->current_path.c_str());
+    if (d != NULL) {
+        while ((p = readdir(d)) != NULL) {
+            // only filter files that have a .g in them and directories not starting with a .
+          if(((p->d_isdir && p->d_name[0] != '.') || filter_file(p->d_name)) && count++ == line ) {
+                isdir= p->d_isdir;
+                string fn= p->d_name;
+                closedir(d);
+                return fn;
+            }
+        }
+    }
+
+    if (d != NULL) closedir(d);
+    isdir= false;
+    return "";
+}
+
+// only filter files that have a .g, .ngc or .nc in them and does not start with a .
+bool MainMenuScreen::filter_file(const char *f)
+{
+    string fn= lc(f);
+    return (fn.at(0) != '.') && (fn.find(".txt") != string::npos);
+}

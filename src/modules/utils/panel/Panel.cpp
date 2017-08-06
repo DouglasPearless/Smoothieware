@@ -36,6 +36,7 @@
 #include "ConfigValue.h"
 #include "Config.h"
 #include "TemperatureControlPool.h"
+#include "PanelMenuCommands.h"
 
 // for parse_pins in mbed
 #include "pinmap.h"
@@ -48,6 +49,7 @@
 #define ssd1306_oled_checksum      CHECKSUM("ssd1306_oled")
 #define viki2_checksum             CHECKSUM("viki2")
 #define mini_viki2_checksum        CHECKSUM("mini_viki2")
+#define st565_with_buttons_checksum CHECKSUM("st565_with_buttons")
 #define universal_adapter_checksum CHECKSUM("universal_adapter")
 
 #define menu_offset_checksum        CHECKSUM("menu_offset")
@@ -55,7 +57,7 @@
 #define jog_x_feedrate_checksum     CHECKSUM("alpha_jog_feedrate")
 #define jog_y_feedrate_checksum     CHECKSUM("beta_jog_feedrate")
 #define jog_z_feedrate_checksum     CHECKSUM("gamma_jog_feedrate")
-#define	longpress_delay_checksum	CHECKSUM("longpress_delay")
+#define	longpress_delay_checksum	  CHECKSUM("longpress_delay")
 
 #define ext_sd_checksum            CHECKSUM("external_sd")
 #define sdcd_pin_checksum          CHECKSUM("sdcd_pin")
@@ -88,6 +90,8 @@ Panel::Panel()
     this->idle_time = 0;
     this->start_up = true;
     this->current_screen = NULL;
+    this->internal_sd= nullptr;
+    this->intmounter= nullptr;
     this->sd= nullptr;
     this->extmounter= nullptr;
     this->external_sd_enable= false;
@@ -126,6 +130,8 @@ void Panel::on_module_loaded()
         this->lcd = new ST7565(2); // variant 2
     } else if (lcd_cksm == ssd1306_oled_checksum) {
         this->lcd = new ST7565(3); // variant 3
+    } else if (lcd_cksm == st565_with_buttons_checksum) {
+        this->lcd = new ST7565(4); // variant 4
     } else if (lcd_cksm == universal_adapter_checksum) {
         this->lcd = new UniversalAdapter();
     } else {
@@ -133,6 +139,12 @@ void Panel::on_module_loaded()
         delete this;
         return;
     }
+
+    // internal sd DHP
+	//mount the internal sd card on the Smoothie board as we need to read the menu and menu structures
+	if(this->intmounter == nullptr) {
+	   mount_internal_sd(true);
+	}
 
     // external sd
     if(THEKERNEL->config->value( panel_checksum, ext_sd_checksum )->by_default(false)->as_bool()) {
@@ -174,14 +186,17 @@ void Panel::on_module_loaded()
 
     this->up_button.up_attach(    this, &Panel::on_up );
     this->down_button.up_attach(  this, &Panel::on_down );
+    this->left_button.up_attach(  this, &Panel::on_left );
+    this->right_button.up_attach( this, &Panel::on_right );
     this->click_button.up_attach( this, &Panel::on_select );
     this->back_button.up_attach(  this, &Panel::on_back );
-
 
     //setting longpress_delay
     int longpress_delay =  THEKERNEL->config->value( panel_checksum, longpress_delay_checksum )->by_default(0)->as_number();
     this->up_button.set_longpress_delay(longpress_delay);
     this->down_button.set_longpress_delay(longpress_delay);
+    this->left_button.set_longpress_delay(longpress_delay);
+    this->right_button.set_longpress_delay(longpress_delay);
 //    this->click_button.set_longpress_delay(longpress_delay);
 //    this->back_button.set_longpress_delay(longpress_delay);
 //    this->pause_button.set_longpress_delay(longpress_delay);
@@ -317,7 +332,6 @@ void Panel::on_main_loop(void *argument)
     }
 }
 
-
 #define ohw_logo_antipixel_width 80
 #define ohw_logo_antipixel_height 15
 static const uint8_t ohw_logo_antipixel_bits[] = {
@@ -355,7 +369,7 @@ void Panel::idle_processing()
         this->lcd->setCursor(0, 0); this->lcd->printf("Welcome to Smoothie");
         this->lcd->setCursor(0, 1); this->lcd->printf("%s", build.substr(0, 20).c_str());
         this->lcd->setCursor(0, 2); this->lcd->printf("%s", date.substr(0, 20).c_str());
-        this->lcd->setCursor(0, 3); this->lcd->printf("Please wait....");
+        this->lcd->setCursor(0, 3); this->lcd->printf("Loading Menu ...");
 
         if (this->lcd->hasGraphics()) {
             this->lcd->bltGlyph(24, 40, ohw_logo_antipixel_width, ohw_logo_antipixel_height, ohw_logo_antipixel_bits);
@@ -452,6 +466,22 @@ uint32_t Panel::on_up(uint32_t dummy)
 }
 
 uint32_t Panel::on_down(uint32_t dummy)
+{
+    int inc = (this->mode == CONTROL_MODE) ? -1 : (this->menu_offset+1);
+    *this->counter += inc;
+    this->counter_changed = true;
+    return 0;
+}
+
+uint32_t Panel::on_left(uint32_t dummy) //DHP NEED TO CHECK THIS 2016-06-29
+{
+    int inc = (this->mode == CONTROL_MODE) ? 1 : -(this->menu_offset+1);
+    *this->counter += inc;
+    this->counter_changed = true;
+    return 0;
+}
+
+uint32_t Panel::on_right(uint32_t dummy) //DHP NEED TO CHECK THIS 2016-06-29
 {
     int inc = (this->mode == CONTROL_MODE) ? -1 : (this->menu_offset+1);
     *this->counter += inc;
@@ -663,6 +693,33 @@ void  Panel::set_playing_file(string f)
     if (n == string::npos) n = 0;
     strncpy(playing_file, f.substr(n + 1, 19).c_str(), sizeof(playing_file));
     playing_file[sizeof(playing_file) - 1] = 0;
+}
+
+bool Panel::mount_internal_sd(bool on)
+{
+    // now setup the internal sdcard and mount it
+    if(on) {
+        if(this->internal_sd == nullptr) {
+            PinName mosi, miso, sclk, cs;
+            mosi = P0_9; miso = P0_8; sclk = P0_7; cs = P0_6;  // this selects SPI1 as the sdcard as it is on Smoothieboard
+            size_t n= sizeof(SDCard);
+            void *v = AHB0.alloc(n);
+            memset(v, 0, n); // clear the allocated memory
+            this->internal_sd= new(v) SDCard(mosi, miso, sclk, cs); // allocate object using zeroed memory
+        }
+        delete this->intmounter; // if it was not unmounted before
+        size_t n= sizeof(SDFAT);
+        void *v = AHB0.alloc(n);
+        memset(v, 0, n); // clear the allocated memory
+        this->intmounter= new(v) SDFAT("int", this->sd); // use cleared allocated memory
+        this->internal_sd->disk_initialize(); // first one seems to fail, but works next time
+        THEKERNEL->streams->printf("Internal SDcard mounted as /int\n");
+    }else{
+        delete this->intmounter;
+        this->intmounter= nullptr;
+        THEKERNEL->streams->printf("Internal SDcard unmounted\n");
+    }
+    return true;
 }
 
 bool Panel::mount_external_sd(bool on)

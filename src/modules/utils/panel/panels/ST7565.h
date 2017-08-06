@@ -64,13 +64,17 @@ private:
 	Pin a0;
 	Pin click_pin;
 	Pin up_pin;
-    Pin down_pin;
-    Pin buzz_pin;
+  Pin down_pin;
+  Pin left_pin;
+  Pin right_pin;
+  Pin buzz_pin;
 	Pin aux_pin;
-    Pin encoder_a_pin;
-    Pin encoder_b_pin;
-    Pin red_led;
-    Pin blue_led;
+  Pin encoder_a_pin;
+  Pin encoder_b_pin;
+  Pin red_led;
+  Pin blue_led;
+  Pin orange_led;
+  Pin green_led;
 
 	// text cursor position
 	uint8_t tx, ty;
@@ -80,6 +84,7 @@ private:
         bool is_viki2:1;
         bool is_mini_viki2:1;
         bool is_ssd1306:1;
+        bool is_st565_with_buttons:1;
         bool use_pause:1;
         bool use_back:1;
     };

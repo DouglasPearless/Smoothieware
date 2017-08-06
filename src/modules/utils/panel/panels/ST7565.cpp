@@ -14,8 +14,6 @@
 #include "StreamOutputPool.h"
 #include "ConfigValue.h"
 
-
-
 //definitions for lcd
 #define LCDWIDTH 128
 #define LCDHEIGHT 64
@@ -33,6 +31,8 @@
 #define click_button_pin_checksum  CHECKSUM("click_button_pin")
 #define up_button_pin_checksum     CHECKSUM("up_button_pin")
 #define down_button_pin_checksum   CHECKSUM("down_button_pin")
+#define left_button_pin_checksum   CHECKSUM("left_button_pin")
+#define right_button_pin_checksum  CHECKSUM("right_button_pin")
 #define pause_button_pin_checksum  CHECKSUM("pause_button_pin")
 #define back_button_pin_checksum   CHECKSUM("back_button_pin")
 #define buzz_pin_checksum          CHECKSUM("buzz_pin")
@@ -42,6 +42,8 @@
 #define a0_pin_checksum            CHECKSUM("a0_pin")
 #define red_led_checksum           CHECKSUM("red_led_pin")
 #define blue_led_checksum          CHECKSUM("blue_led_pin")
+#define orange_led_checksum        CHECKSUM("orange_led_pin")
+#define green_led_checksum         CHECKSUM("green_led_pin")
 
 #define CLAMP(x, low, high) { if ( (x) < (low) ) x = (low); if ( (x) > (high) ) x = (high); } while (0);
 #define swap(a, b) { uint8_t t = a; a = b; b = t; }
@@ -51,6 +53,7 @@ ST7565::ST7565(uint8_t variant)
     is_viki2 = false;
     is_mini_viki2 = false;
     is_ssd1306= false;
+    is_st565_with_buttons = false;
 
     // set the variant
     switch(variant) {
@@ -69,6 +72,11 @@ ST7565::ST7565(uint8_t variant)
             is_ssd1306= true;
             this->reversed = false;
             this->contrast = 9;
+            break;
+        case 4: //st565_with_buttons
+            is_st565_with_buttons = true;
+            this->reversed = true;
+            this->contrast = 0;
             break;
        default:
             // set default for sub variants
@@ -104,7 +112,7 @@ ST7565::ST7565(uint8_t variant)
     this->a0.from_string(THEKERNEL->config->value( panel_checksum, a0_pin_checksum)->by_default("nc")->as_string())->as_output();
     if(a0.connected()) a0.set(1);
 
-    if(!is_viki2 && !is_mini_viki2 && !is_ssd1306) {
+    if(!is_viki2 && !is_mini_viki2 && !is_ssd1306 && !is_st565_with_buttons) {
         this->up_pin.from_string(THEKERNEL->config->value( panel_checksum, up_button_pin_checksum )->by_default("nc")->as_string())->as_input();
         this->down_pin.from_string(THEKERNEL->config->value( panel_checksum, down_button_pin_checksum )->by_default("nc")->as_string())->as_input();
     } else {
@@ -112,7 +120,28 @@ ST7565::ST7565(uint8_t variant)
         this->down_pin.from_string("nc");
     }
 
+    if(is_st565_with_buttons) {
+        this->up_pin.from_string(THEKERNEL->config->value( panel_checksum, up_button_pin_checksum )->by_default("nc")->as_string())->as_input();
+        this->down_pin.from_string(THEKERNEL->config->value( panel_checksum, down_button_pin_checksum )->by_default("nc")->as_string())->as_input();
+        this->left_pin.from_string(THEKERNEL->config->value( panel_checksum, left_button_pin_checksum )->by_default("nc")->as_string())->as_input();
+        this->right_pin.from_string(THEKERNEL->config->value( panel_checksum, right_button_pin_checksum )->by_default("nc")->as_string())->as_input();
+
+        //aux button is pause
+        string aux_but = THEKERNEL->config->value( panel_checksum, pause_button_pin_checksum )->by_default("nc")->as_string();
+        this->use_pause = true;
+        this->use_back = false;
+
+        this->orange_led.from_string(THEKERNEL->config->value( panel_checksum, orange_led_checksum)->by_default("nc")->as_string())->as_output();
+        this->green_led.from_string(THEKERNEL->config->value( panel_checksum, green_led_checksum)->by_default("nc")->as_string())->as_output();
+        this->orange_led.set(false);
+        this->green_led.set(true);
+    } else {
+        this->left_pin.from_string("nc");
+        this->right_pin.from_string("nc");
+    }
+
     this->aux_pin.from_string("nc");
+
     if(is_viki2) {
         // the aux pin can be pause or back on a viki2
         string aux_but = THEKERNEL->config->value( panel_checksum, pause_button_pin_checksum )->by_default("nc")->as_string();
@@ -132,9 +161,14 @@ ST7565::ST7565(uint8_t variant)
     }
 
     this->click_pin.from_string(THEKERNEL->config->value( panel_checksum, click_button_pin_checksum )->by_default("nc")->as_string())->as_input();
-    this->encoder_a_pin.from_string(THEKERNEL->config->value( panel_checksum, encoder_a_pin_checksum)->by_default("nc")->as_string())->as_input();
-    this->encoder_b_pin.from_string(THEKERNEL->config->value( panel_checksum, encoder_b_pin_checksum)->by_default("nc")->as_string())->as_input();
-
+    if (is_st565_with_buttons) {
+        //st565_with_buttons does not provide or use a rotary encoder, but does have a click button
+        this->encoder_a_pin.from_string("nc");
+        this->encoder_b_pin.from_string("nc");
+    } else {
+        this->encoder_a_pin.from_string(THEKERNEL->config->value( panel_checksum, encoder_a_pin_checksum)->by_default("nc")->as_string())->as_input();
+        this->encoder_b_pin.from_string(THEKERNEL->config->value( panel_checksum, encoder_b_pin_checksum)->by_default("nc")->as_string())->as_input();
+    }
     this->buzz_pin.from_string(THEKERNEL->config->value( panel_checksum, buzz_pin_checksum)->by_default("nc")->as_string())->as_output();
 
     if(is_viki2) {
@@ -389,11 +423,16 @@ void ST7565::on_refresh(bool now)
 uint8_t ST7565::readButtons(void)
 {
     uint8_t state = 0;
-    state |= (this->click_pin.get() ? BUTTON_SELECT : 0);
-    if(this->up_pin.connected()) {
-        state |= (this->up_pin.get() ? BUTTON_UP : 0);
-        state |= (this->down_pin.get() ? BUTTON_DOWN : 0);
-    }
+//    state |= (this->click_pin.get() ? BUTTON_SELECT : 0);
+//    if(this->up_pin.connected()) {
+//        state |= (this->up_pin.get() ? BUTTON_UP : 0);
+//        state |= (this->down_pin.get() ? BUTTON_DOWN : 0);
+//    }
+    if(this->click_pin.connected()) state |= (this->click_pin.get() ? BUTTON_SELECT : 0);
+    if(this->up_pin.connected())    state |= (this->up_pin.get()    ? BUTTON_UP     : 0);
+    if(this->down_pin.connected())  state |= (this->down_pin.get()  ? BUTTON_DOWN   : 0);
+    if(this->left_pin.connected())  state |= (this->left_pin.get()  ? BUTTON_LEFT   : 0);
+    if(this->right_pin.connected()) state |= (this->right_pin.get() ? BUTTON_RIGHT  : 0);
     if(this->aux_pin.connected() && this->aux_pin.get()) {
         if(this->use_pause) state |= BUTTON_PAUSE;
         else if(this->use_back) state |= BUTTON_LEFT;
@@ -484,7 +523,7 @@ void ST7565::buzz(long duration, uint16_t freq)
 
 void ST7565::setLed(int led, bool onoff)
 {
-    if(!is_viki2) return;
+    if(!is_viki2 && !is_st565_with_buttons) return;
 
     if(led == LED_HOT) {
         if(onoff)  {
@@ -493,6 +532,22 @@ void ST7565::setLed(int led, bool onoff)
         } else {
             red_led.set(false);
             blue_led.set(true);
+        }
+    }
+
+    if(led == LED_ORANGE) {
+        if(onoff)  {
+            orange_led.set(true);
+        } else {
+            orange_led.set(false);
+        }
+    }
+
+    if(led == LED_GREEN) {
+        if(onoff)  {
+            green_led.set(true);
+        } else {
+            green_led.set(false);
         }
     }
 }
