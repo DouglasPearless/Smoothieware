@@ -155,17 +155,29 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 //	            }
 
 	            //prepare variables
+	            only_if_playing_is_token=false;
 	            only_if_playing_is=false;
+	            only_if_halted_is_token=false;
 	            only_if_halted_is=false;
+	            only_if_suspended_is_token=false;
 	            only_if_suspended_is=false;
+	            only_if_file_is_gcode_token=false;
 	            only_if_file_is_gcode=false;
+	            only_if_extruder_token=false;
 	            only_if_extruder=false;
+	            only_if_temperature_control_token=false;
 	            only_if_temperature_control=false;
+	            only_if_laser_token=false;
 	            only_if_laser=false;
+	            only_if_cnc_token=false;
 	            only_if_cnc=false;
+	            is_title_token=false;
 	            is_title=false;
+	            not_selectable_token=false;
 	            not_selectable=false;
+	            file_selector_token=false;
 	            file_selector=false;
+	            action_token=false;
 	            action=false;
 	            label = "";
 	            title = "";
@@ -233,61 +245,73 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 
                         }
                       } else if(token_checksum == only_if_playing_is_checksum) {
+                          only_if_playing_is_token = true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_playing_is = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_halted_is_checksum) {
+                          only_if_halted_is_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_halted_is = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_suspended_is_checksum) {
+                          only_if_suspended_is_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_suspended_is = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_file_is_gcode_checksum) {
+                          only_if_file_is_gcode_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_file_is_gcode = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_extruder_checksum) {
+                          only_if_extruder_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_extruder = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_temperature_control_checksum) {
+                          only_if_temperature_control_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_temperature_control = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_laser_checksum) {
+                          only_if_laser_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_laser = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == only_if_cnc_checksum) {
+                          only_if_cnc_token=true;
                           if(tokens.size()>=1) {
                               if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
                                 only_if_cnc = true; //TODO need a neat way to interpret a '0' or a '1'
                           }
                       } else if(token_checksum == is_title_checksum) {
+                          is_title_token=true;
                           is_title = true;
                       } else if(token_checksum == not_selectable_checksum) {
+                          not_selectable_token = true;
                           not_selectable = true; //TODO need a neat way to interpret a '0' or a '1'
                       } else if(token_checksum == file_selector_checksum) {
+                          file_selector_token=true;
                           if(tokens.size()>=2) {
                               // tokens[1] contains where to start exploring the system
                               // tokens[2] contains the path above which the user cannot go
                                 file_selector = true;
                           }
                       } else if(token_checksum == action_checksum) {
+                          action_token = true;
                           if(tokens.size()>=2) {
                               // tokens[1] contains the action itself
                               // tokens[2] contains the first parameter for the action
                               // tokens[3] contains the optional second parameter
-                                action = true;
+                              action = true;
                           }
                       } else if(tokens[0].substr(0,1).compare("#")==0) {
                           // A comment, skip
@@ -306,8 +330,17 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	            fclose(this->current_file_handler);
 	            //we now have enough information to process the line and display as needed
 	            //TODO if is_title the we need to format the label and keep it on the top line if we scroll
-              THEPANEL->lcd->printf("%s", label.c_str()); //TODO remove this as it is just a test
-              //TODO we need to work out all the conditions ('only_if...')
+
+	            //TODO we need to work out all the conditions ('only_if...')
+
+              if ( only_if_playing_is_token) {
+                  if (only_if_playing_is && THEPANEL->is_playing())
+                    THEPANEL->lcd->printf("%s", label.c_str());
+                  if (!only_if_playing_is && !THEPANEL->is_playing())
+                    THEPANEL->lcd->printf("%s", label.c_str());
+              }
+
+
               //TODO we need to perform the action (if any)
 	        }
 	    }

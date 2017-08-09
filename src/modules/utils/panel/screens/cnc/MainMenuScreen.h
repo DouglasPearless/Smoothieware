@@ -40,18 +40,32 @@ class MainMenuScreen : public PanelScreen {
         std::string label;
         std::string title;
         FILE* current_file_handler;
-        bool only_if_playing_is;
-        bool only_if_halted_is;
-        bool only_if_suspended_is;
-        bool only_if_file_is_gcode;
-        bool only_if_extruder;
-        bool only_if_temperature_control;
-        bool only_if_laser;
-        bool only_if_cnc;
-        bool is_title;
-        bool not_selectable;
-        bool file_selector;
-        bool action;
+        volatile struct {
+            bool only_if_playing_is_token:1;
+            bool only_if_playing_is:1;
+            bool only_if_halted_is_token:1;
+            bool only_if_halted_is:1;
+            bool only_if_suspended_is_token:1;
+            bool only_if_suspended_is:1;
+            bool only_if_file_is_gcode_token:1;
+            bool only_if_file_is_gcode:1;
+            bool only_if_extruder_token:1;
+            bool only_if_extruder:1;
+            bool only_if_temperature_control_token:1;
+            bool only_if_temperature_control:1;
+            bool only_if_laser_token:1;
+            bool only_if_laser:1;
+            bool only_if_cnc_token:1;
+            bool only_if_cnc:1;
+            bool is_title_token:1;
+            bool is_title:1;
+            bool not_selectable_token:1;
+            bool not_selectable:1;
+            bool file_selector_token:1;
+            bool file_selector:1;
+            bool action_token:1;
+            bool action:1;
+        };
 };
 
 
