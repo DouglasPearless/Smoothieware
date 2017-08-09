@@ -27,8 +27,9 @@
 #define display_watch_screen                    CHECKSUM("display-watch-screen")
 
 //National Language Support
-#define action_en_checksum                      CHECKSUM("action_en")
-#define action_fr_checksum                      CHECKSUM("action_fr")
+#define label_en_checksum                      CHECKSUM("label-en")
+#define label_fr_checksum                      CHECKSUM("label-fr")
+#define label_es_checksum                      CHECKSUM("label-es")
 
 //Should language be controlled from the Smoothie config file, and picked up by Panel? for example:
 //Panel.language                                en  #default is en, optiosn are:

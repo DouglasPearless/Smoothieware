@@ -11,6 +11,7 @@
 #include "PanelScreen.h"
 
 #define max_path_length 32
+#define menu_root "/sd/menu/main"
 
 class MainMenuScreen : public PanelScreen {
     public:
@@ -31,7 +32,7 @@ class MainMenuScreen : public PanelScreen {
         void abort_playing();
         void setupConfigureScreen();
 
-        void enter_folder(const char *folder);
+        void enter_folder(std::string folder);
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
         bool filter_file(const char *f);

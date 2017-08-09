@@ -29,6 +29,9 @@
 #include "LaserScreen.h"
 #include "DirHandle.h"
 #include "mbed.h"
+#include "PanelMenuCommands.h"
+
+using std::vector;
 
 #include <string>
 using namespace std;
@@ -42,7 +45,8 @@ MainMenuScreen::MainMenuScreen()
 	if (THEPANEL->internal_sd != nullptr){
 		//The SD Card is OK so lets start from the root and build a menu
 	    // reset to root directory, I think this is less confusing
-	    this->enter_folder("/sd/menu/main");
+	    //this->enter_folder("/sd/menu/main");
+	    this->enter_folder(menu_root);
 	}
     // Children screens
     this->jog_screen     = (new JogScreen()     )->set_parent(this);
@@ -120,6 +124,7 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
+
 	//we need to read the nth file in the current menu directory, open the file and interpret it.
 	if ( line == 0 ) {
 	        THEPANEL->lcd->printf("..");
@@ -131,7 +136,8 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	            this->filename = THEKERNEL->current_path + '/' + this->file_at(line - 1, isdir).substr(0, max_path_length);
 	        else
 	           	this->filename = THEKERNEL->current_path + this->file_at(line - 1, isdir).substr(0, max_path_length);
-	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 19).c_str()); //TODO 19 should not be hard wired, it should the the panel character width - 2 places
+//	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 19).c_str()); //TODO 19 should not be hard wired, it should the the panel character width - 2 places
+
 	        //this->filename.append(this->file_at(line - 1, isdir).substr(0, 18));
 //	        if(isdir) {
 //	            if(fn.size() >= 18) fn.back()= '/';
@@ -150,7 +156,7 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 
 	            this->current_file_handler = fopen( this->filename.c_str(), "r");
 	            if(this->current_file_handler == NULL) {
-	                //stream->printf("File not found: %s\r\n", this->filename.c_str());
+	                //stream->printf("File not found: %s\r\n", this->filename.c_str());  //this should never happen
 	                return;
 	            }
 	            while(fgets(buf, sizeof(buf), this->current_file_handler) != NULL) {
@@ -163,9 +169,62 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	                    }
 	                    if(len == 1) continue; // empty line
 
-	    	               //THEPANEL->lcd->printf("%s", buf);
+	                    //We now have a line from the file and need to interpret its contents
+	                    //Supported tokens are:
+	                    //label-<en/es/fr> label-text
+	                    //action <action> <parameter>
+	                    //[only-if-playing-is |
+	                    // only-if-halted-is |
+	                    // only-if-suspended-is |
+	                    // only-if-file-is-gcode |
+	                    // is-title <negative|left|centered|right> |
+	                    // not-selectable |
+	                    // file-selector <root-of-dirs> <not-not-allow-above-this-file-path
+	    	              // only-if-extruder
+	                    // only-if-temperature-control
+	                    // only-if-laser
+	                    // goto-menu <menu-path>
+	                    // run-command <command. <parameters>
+	                    // action control-axis [X|Y|Z] <distance-in-mm>
+	                    // action control-extruder [0..n] <distance-in-nn>
+	                    // file-select <start-point-in-file> <file-to-execute>
+	                    //
+	                    ///THEPANEL->lcd->printf("%s", buf);
+	                    //
 
-	                    break; // we feed one line per main loop, need to expand later
+	                    std::string str(buf);
+
+	                    vector<string> tokens;
+	                    const string delimiters = " \t\n\r";
+
+	                      // skip delimiters at beginning.
+	                          string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+
+	                      // find first "non-delimiter".
+	                          string::size_type pos = str.find_first_of(delimiters, lastPos);
+
+	                          while (string::npos != pos || string::npos != lastPos)
+	                          {
+	                              // found a token, add it to the vector.
+	                              tokens.push_back(str.substr(lastPos, pos - lastPos));
+
+	                              // skip delimiters.  Note the "not_of"
+	                              lastPos = str.find_first_not_of(delimiters, pos);
+
+	                              // find next "non-delimiter"
+	                              pos = str.find_first_of(delimiters, lastPos);
+	                          }
+                      if (tokens.size()==0)
+	                      break; // No tokens, nothing to process
+
+                      uint16_t token_checksum = get_checksum(tokens[0]);
+                      if(token_checksum == label_en_checksum) {
+                        if(tokens.size()>=1) {
+                          THEPANEL->lcd->printf("%s", tokens[1].c_str());
+                          break;
+                        }
+
+                      }
 
 	                } else {
 	                    // discard long line
@@ -206,7 +265,7 @@ void MainMenuScreen::abort_playing()
 }
 
 // Enter a new folder
-void MainMenuScreen::enter_folder(const char *folder)
+void MainMenuScreen::enter_folder(std::string folder)
 {
     // Remember where we are
     THEKERNEL->current_path= folder;

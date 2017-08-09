@@ -11,6 +11,7 @@
 #include "PanelScreen.h"
 
 #include <string>
+using namespace std;
 
 class FileScreen : public PanelScreen {
     public:
@@ -23,7 +24,7 @@ class FileScreen : public PanelScreen {
         void display_menu_line(uint16_t line);
 
     private:
-        void enter_folder(const char *folder);
+        void enter_folder(std::string folder);
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
         bool filter_file(const char *f);

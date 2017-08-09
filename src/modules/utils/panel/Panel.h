@@ -13,8 +13,11 @@
 #include "Pin.h"
 #include <string>
 #include <functional>
+#include "platform_memory.h"
 
 #define THEPANEL Panel::instance
+
+using std::string;
 
 class LcdBase;
 class PanelScreen;
@@ -41,6 +44,8 @@ class Panel : public Module {
         // Encoder and buttons
         uint32_t on_up(uint32_t dummy);
         uint32_t on_down(uint32_t dummy);
+        uint32_t on_left(uint32_t dummy);
+        uint32_t on_right(uint32_t dummy);
         uint32_t on_back(uint32_t dummy);
         uint32_t on_select(uint32_t dummy);
         uint32_t refresh_tick(uint32_t dummy);
@@ -96,10 +101,21 @@ class Panel : public Module {
 
         // as panelscreen accesses private fields in Panel
         friend class PanelScreen;
+        //as MainMenuScreen needs to be able to read the menu structures off the internal SD card
+        friend class MainMenuScreen;
 
     private:
 
         void idle_processing();
+
+        //internal SD card on the Smoothie Board
+        //note: we need to share access to the SD card with other parts of Smoothie
+        string filename;
+        FILE* current_file_handler;
+        bool mount_internal_sd(bool on);
+        SDCard *internal_sd;
+        SDFAT *intmounter;
+
         // external SD card
         bool mount_external_sd(bool on);
         Pin sdcd_pin;
@@ -120,6 +136,8 @@ class Panel : public Module {
 
         Button up_button;
         Button down_button;
+        Button left_button;
+        Button right_button;
         Button back_button;
         Button click_button;
 

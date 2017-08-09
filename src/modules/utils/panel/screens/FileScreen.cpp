@@ -53,9 +53,15 @@ void FileScreen::on_refresh()
 }
 
 // Enter a new folder
-void FileScreen::enter_folder(const char *folder)
+void FileScreen::enter_folder(std::string folder)
 {
     // Remember where we are
+  //we need to make sure we do not leave /sd/menu/main as that is the "root" of the menu structure.
+  //TODO DP maybe make the root configurable in the menu system?
+  //TODO root_menu is the defined too in the .h file
+  //if (folder) {
+  //    //folder = ?
+  //}
     THEKERNEL->current_path= folder;
 
     // We need the number of lines to setup the menu

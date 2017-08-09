@@ -18,6 +18,8 @@
 #define LED_HOTEND_ON 2
 #define LED_BED_ON    3
 #define LED_HOT       4
+#define LED_ORANGE    5
+#define LED_GREEN     6
 
 class Panel;
 
