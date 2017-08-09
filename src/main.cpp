@@ -69,7 +69,7 @@
 #include "mbed_interface.h"
 /* test */
 
-    extern "C" void mbed_mac_address(char *s);
+//    extern "C" void mbed_mac_address(char *s);
     uint64_t uid = 0;
 
     char mac[6];

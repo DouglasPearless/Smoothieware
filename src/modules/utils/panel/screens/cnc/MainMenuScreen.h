@@ -37,7 +37,21 @@ class MainMenuScreen : public PanelScreen {
         std::string file_at(uint16_t line, bool& isdir);
         bool filter_file(const char *f);
         std::string filename;
+        std::string label;
+        std::string title;
         FILE* current_file_handler;
+        bool only_if_playing_is;
+        bool only_if_halted_is;
+        bool only_if_suspended_is;
+        bool only_if_file_is_gcode;
+        bool only_if_extruder;
+        bool only_if_temperature_control;
+        bool only_if_laser;
+        bool only_if_cnc;
+        bool is_title;
+        bool not_selectable;
+        bool file_selector;
+        bool action;
 };
 
 

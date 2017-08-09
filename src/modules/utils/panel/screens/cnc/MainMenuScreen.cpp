@@ -154,6 +154,22 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 //	                fclose(this->current_file_handler);
 //	            }
 
+	            //prepare variables
+	            only_if_playing_is=false;
+	            only_if_halted_is=false;
+	            only_if_suspended_is=false;
+	            only_if_file_is_gcode=false;
+	            only_if_extruder=false;
+	            only_if_temperature_control=false;
+	            only_if_laser=false;
+	            only_if_cnc=false;
+	            is_title=false;
+	            not_selectable=false;
+	            file_selector=false;
+	            action=false;
+	            label = "";
+	            title = "";
+
 	            this->current_file_handler = fopen( this->filename.c_str(), "r");
 	            if(this->current_file_handler == NULL) {
 	                //stream->printf("File not found: %s\r\n", this->filename.c_str());  //this should never happen
@@ -169,25 +185,6 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	                    }
 	                    if(len == 1) continue; // empty line
 
-	                    //We now have a line from the file and need to interpret its contents
-	                    //Supported tokens are:
-	                    //label-<en/es/fr> label-text
-	                    //action <action> <parameter>
-	                    //[only-if-playing-is |
-	                    // only-if-halted-is |
-	                    // only-if-suspended-is |
-	                    // only-if-file-is-gcode |
-	                    // is-title <negative|left|centered|right> |
-	                    // not-selectable |
-	                    // file-selector <root-of-dirs> <not-not-allow-above-this-file-path
-	    	              // only-if-extruder
-	                    // only-if-temperature-control
-	                    // only-if-laser
-	                    // goto-menu <menu-path>
-	                    // run-command <command. <parameters>
-	                    // action control-axis [X|Y|Z] <distance-in-mm>
-	                    // action control-extruder [0..n] <distance-in-nn>
-	                    // file-select <start-point-in-file> <file-to-execute>
 	                    //
 	                    ///THEPANEL->lcd->printf("%s", buf);
 	                    //
@@ -197,35 +194,110 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	                    vector<string> tokens;
 	                    const string delimiters = " \t\n\r";
 
-	                      // skip delimiters at beginning.
-	                          string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+	                    // skip delimiters at the start of the line
+	                    string::size_type lastPos = str.find_first_not_of(delimiters, 0);
 
-	                      // find first "non-delimiter".
-	                          string::size_type pos = str.find_first_of(delimiters, lastPos);
+	                    // find first non-delimiter
+	                    string::size_type pos = str.find_first_of(delimiters, lastPos);
 
-	                          while (string::npos != pos || string::npos != lastPos)
-	                          {
-	                              // found a token, add it to the vector.
-	                              tokens.push_back(str.substr(lastPos, pos - lastPos));
+	                    while (string::npos != pos || string::npos != lastPos) {
+	                       // found a token, add it to the vector.
+	                       tokens.push_back(str.substr(lastPos, pos - lastPos));
 
-	                              // skip delimiters.  Note the "not_of"
-	                              lastPos = str.find_first_not_of(delimiters, pos);
+	                       // skip delimiters
+	                       lastPos = str.find_first_not_of(delimiters, pos);
 
-	                              // find next "non-delimiter"
-	                              pos = str.find_first_of(delimiters, lastPos);
-	                          }
+	                       // find next non-delimiter
+	                       pos = str.find_first_of(delimiters, lastPos);
+	                    }
                       if (tokens.size()==0)
 	                      break; // No tokens, nothing to process
 
+                      // Note checksums are not const expressions when in debug mode, so don't use switch
                       uint16_t token_checksum = get_checksum(tokens[0]);
+
                       if(token_checksum == label_en_checksum) {
                         if(tokens.size()>=1) {
-                          THEPANEL->lcd->printf("%s", tokens[1].c_str());
+                            label = tokens[1].c_str();
                           break;
                         }
-
+                      } else if(token_checksum == only_if_playing_is_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_playing_is = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_halted_is_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_halted_is = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_suspended_is_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_suspended_is = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_file_is_gcode_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_file_is_gcode = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_extruder_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_extruder = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_temperature_control_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_temperature_control = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_laser_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_laser = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == only_if_cnc_checksum) {
+                          if(tokens.size()>=1) {
+                              if(tokens[1].substr(0,1).compare("1")==0) //if == 0 then compare is true
+                                only_if_cnc = true; //TODO need a neat way to interpret a '0' or a '1'
+                          }
+                          break;
+                      } else if(token_checksum == is_title_checksum) {
+                          is_title = true;
+                          break;
+                      } else if(token_checksum == not_selectable_checksum) {
+                          not_selectable = true; //TODO need a neat way to interpret a '0' or a '1'
+                          break;
+                      } else if(token_checksum == file_selector_checksum) {
+                          if(tokens.size()>=2) {
+                              // tokens[1] contains where to start exploring the system
+                              // tokens[2] contains the path above which the user cannot go
+                                file_selector = true;
+                          }
+                          break;
+                      } else if(token_checksum == action_checksum) {
+                          if(tokens.size()>=2) {
+                              // tokens[1] contains the action itself
+                              // tokens[2] contains the first parameter for the action
+                              // tokens[3] contains the optional second parameter
+                                action = true;
+                          }
+                          break;
+                      } else if(tokens[0].substr(0,1).compare("#")==0) {
+                          // A comment, skip
+                          break;
+                      } else {
+                        //we have a problem, an unknown token
+                          //TODO check if a comment (line starts with a #)
+                          break;
                       }
-
 	                } else {
 	                    // discard long line
 	                    //this->current_stream->printf("Warning: Discarded long line\n");
@@ -234,6 +306,11 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	            }
 
 	            fclose(this->current_file_handler);
+	            //we now have enough information to process the line and display as needed
+	            //TODO if is_title the we need to format the label and keep it on the top line if we scroll
+              THEPANEL->lcd->printf("%s", label); //TODO remove this as it is just a test
+              //TODO we need to work out all the conditions ('only_if...')
+              //TODO we need to perform the action (if any)
 	        }
 	    }
 }

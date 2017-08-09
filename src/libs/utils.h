@@ -6,6 +6,7 @@
 
 std::string lc(const std::string& str);
 
+bool is_bool ( int );
 bool is_alpha( int );
 bool is_digit( int );
 bool is_numeric( int );

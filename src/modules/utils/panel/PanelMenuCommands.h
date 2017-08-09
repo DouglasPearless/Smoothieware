@@ -19,6 +19,7 @@
 
 //Actions
 #define action_checksum                         CHECKSUM("action")
+//actual actions as second parameter to an "action" are:
 #define goto_menu_checksum                      CHECKSUM("goto-menu")
 #define run_command                             CHECKSUM("Run-command")
 #define control_axis                            CHECKSUM("control-axis")
@@ -27,7 +28,7 @@
 #define display_watch_screen                    CHECKSUM("display-watch-screen")
 
 //National Language Support
-#define label_en_checksum                      CHECKSUM("label-en")
+#define label_en_checksum                      CHECKSUM("label-en") //default
 #define label_fr_checksum                      CHECKSUM("label-fr")
 #define label_es_checksum                      CHECKSUM("label-es")
 
