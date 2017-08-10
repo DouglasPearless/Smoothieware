@@ -124,25 +124,35 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
+  bool line_processed;
+  uint16_t current_line;
 
-	//we need to read the nth file in the current menu directory, open the file and interpret it.
-	if ( line == 0 ) {
-	        THEPANEL->lcd->printf("..");
-	    } else {
-	        bool isdir;
-//	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 18).c_str());
-	        //make sure the path ends in a '/' note I could not .append ( ).append( ) as the second append never got added, no idea why!
+	//we need to read the nth 'line' file in the current menu directory, open the file and interpret it; if the file is not to be displayed
+  //the we need to open the next on in the directory listing, if there are no more, then simply return.
+
+  line_processed = false;
+  current_line = line; //this is the line counter in case the current line file does not result in a line to be displayed on the LCD
+  std::string current_file;
+	if ( current_line == 0 ) {
+	    THEPANEL->lcd->printf("..");
+	} else {
+	    //TODO need to iterate until the "ith" line is actually displayed
+	     //TODO may need a file counter so we know where we are in the directory as there is not a 1:1 map between lines on the screen and files
+	    bool isdir;
+//      THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 18).c_str());
+	    //make sure the path ends in a '/' note I could not .append ( ).append( ) as the second append never got added, no idea why!
+	    while(!line_processed) {
+	        current_file = this->file_at(current_line - 1, isdir).substr(0, max_path_length);
+	        if (current_file.empty()) { //empty file means we ahve been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
+	            line_processed = true;
+	            break;
+	        }
 	        if (THEKERNEL->current_path.back() != '/')
-	            this->filename = THEKERNEL->current_path + '/' + this->file_at(line - 1, isdir).substr(0, max_path_length);
+	            this->filename = THEKERNEL->current_path + '/' + current_file;
 	        else
-	           	this->filename = THEKERNEL->current_path + this->file_at(line - 1, isdir).substr(0, max_path_length);
+	           	this->filename = THEKERNEL->current_path + current_file;
 //	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 19).c_str()); //TODO 19 should not be hard wired, it should the the panel character width - 2 places
 
-	        //this->filename.append(this->file_at(line - 1, isdir).substr(0, 18));
-//	        if(isdir) {
-//	            if(fn.size() >= 18) fn.back()= '/';
-//	            else fn.append("/");
-//	        }
 	        if(!isdir) {
 	            //THEPANEL->lcd->printf("%s", this->filename.c_str());
 	            //Now we need to open the file and interpret its contents
@@ -342,8 +352,13 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 
 
               //TODO we need to perform the action (if any)
+              //TODO we need to handle line_processed
+              //TODO we need to handle line:file position in directory is not 1:1
+
 	        }
+          line_processed = true; //TODO for debug, remove this
 	    }
+	 }
 }
 
 void MainMenuScreen::clicked_menu_entry(uint16_t line)
