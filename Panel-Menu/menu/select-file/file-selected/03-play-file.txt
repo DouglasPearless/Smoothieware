@@ -1,0 +1,11 @@
+label-en Play
+label-fr Lancer
+label-es Jugar
+
+only-if-playing-is 0
+only-if-file-is-gcode 1
+
+action run-command play *f
+
+
+

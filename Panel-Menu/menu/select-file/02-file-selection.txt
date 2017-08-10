@@ -1,0 +1,4 @@
+file-selector /sd /
+
+action goto-menu /sd/panel/menu/select-file/file-selected/
+

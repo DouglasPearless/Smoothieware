@@ -1,0 +1,7 @@
+label-en    Select a file
+label-fr    Selectionnez un ficher
+label-es    Selectionar un filo
+
+is-title
+not-selectable
+

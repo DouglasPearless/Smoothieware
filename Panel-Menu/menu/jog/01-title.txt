@@ -1,0 +1,8 @@
+label-en   Jogging: Select axis
+label-fr   Deplacement: Choix de l'axe
+label-es   Deplacar: Eligir axis
+
+is-title
+not-selectable
+
+

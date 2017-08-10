@@ -1,0 +1,6 @@
+label-en   Configure
+label-fr   Configurer
+label-es   Configurar
+
+action goto-menu /sd/panel/menu/configure/
+

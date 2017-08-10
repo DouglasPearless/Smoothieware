@@ -1,0 +1,10 @@
+label-en   Prepare
+label-fr   Preparer
+label-es   Preparar
+
+# Only if currently not playing and not halted
+only-if-playing-is   0
+only-if-halted-is    0
+
+action goto-menu /sd/panel/menu/prepare/
+

@@ -1,0 +1,11 @@
+label-en   Resume playing file
+label-fr   Reprendre l'execution du fichier
+label-es   Resumar el filo
+
+# Only if currently playing and not halted and suspended
+only-if-playing-is   1
+only-if-halted-is    0
+only-if-suspended-is 1
+
+action run-command resume
+

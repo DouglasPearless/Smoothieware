@@ -1,0 +1,11 @@
+label-en   Suspend playing file
+label-fr   Suspendre l'execution du fichier
+label-es   Suspender el filo
+
+# Only if currently playing and not halted and not suspended
+only-if-playing-is   1
+only-if-halted-is    0
+only-if-suspended-is 0
+
+action run-command suspend
+

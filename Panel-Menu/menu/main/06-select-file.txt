@@ -1,0 +1,10 @@
+label-en   Select a file
+label-fr   Selectionner un fichier
+label-es   Selectar un filo
+
+# Only if currently not playing and not halted
+only-if-playing-is   0
+only-if-halted-is    0
+
+action goto-menu /sd/panel/menu/select-file/
+

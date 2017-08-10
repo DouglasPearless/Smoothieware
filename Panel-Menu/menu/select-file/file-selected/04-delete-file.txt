@@ -1,0 +1,8 @@
+label-en Delete
+label-fr Supprimer
+label-es Deletar
+
+action run-command rm *f
+
+
+

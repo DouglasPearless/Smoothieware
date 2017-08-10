@@ -1,0 +1,7 @@
+label-en   For *f
+label-fr   Pour *f
+label-es   Para *f
+
+is-title
+not-selectable
+

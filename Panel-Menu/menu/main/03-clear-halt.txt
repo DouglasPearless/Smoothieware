@@ -1,0 +1,9 @@
+label-en    Exit halted state
+label-fr    Sortir d'etat halte
+label-es    Exido el halto
+
+# Only display if we are currently halted
+only-if-halted-is 1
+
+action run-command M999
+

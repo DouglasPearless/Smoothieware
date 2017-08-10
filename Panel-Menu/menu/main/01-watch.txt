@@ -1,0 +1,10 @@
+label-en   Watch
+label-fr   Etat
+label-es   Statudo
+
+# Only display this entry if a file is playing
+only-if-playing-is 1
+
+action goto-watch-screen /sd/panel/screen/watch/currently-playing/
+
+

@@ -1,0 +1,5 @@
+label-en  X
+
+action goto-menu /sd/panel/menu/jog/jog-x/ 
+
+
