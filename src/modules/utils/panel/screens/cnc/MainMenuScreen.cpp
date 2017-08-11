@@ -124,25 +124,38 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
-  parse_menu_line(line);
+  if ( line == 0 ) {
+      THEPANEL->lcd->printf("..");
+      filename_index = 1;
+  } else if (parse_menu_line(line)) {
+
+      //TODO we need to perform the action (if any)
+      //TODO we need to handle line_processed
+      //TODO we need to handle line:file position in directory is not 1:1
+
+      //TODO need to deal with the conditions that ensure the contents are displayed, therefore file_indexx++ is correct
+      if ( only_if_playing_is_token) {
+          if (only_if_playing_is && THEPANEL->is_playing()) {
+            THEPANEL->lcd->printf("%s", label.c_str());
+          }
+          if (!only_if_playing_is && !THEPANEL->is_playing()) {
+            THEPANEL->lcd->printf("%s", label.c_str());
+          }
+      }
+  }
 }
 
-void MainMenuScreen::parse_menu_line(uint16_t line)
+bool MainMenuScreen::parse_menu_line(uint16_t line)
 {
 
   bool line_processed;
-  uint16_t current_line;
 
 	//we need to read the nth 'line' file in the current menu directory, open the file and interpret it; if the file is not to be displayed
   //the we need to open the next on in the directory listing, if there are no more, then simply return.
 
   line_processed = false;
-  current_line = line; //this is the line counter in case the current line file does not result in a line to be displayed on the LCD
   std::string current_file;
-	if ( current_line == 0 ) {
-	    THEPANEL->lcd->printf("..");
-	    filename_index = 1;
-	} else {
+
 	    //TODO need to iterate until the "ith" line is actually displayed - there is not a 1:1 map between lines on the screen and files
 	    bool isdir;
 
@@ -196,7 +209,7 @@ void MainMenuScreen::parse_menu_line(uint16_t line)
 
 	            if(this->current_file_handler == NULL) {
 	                //this should never happen
-	                return;
+	                return false;
 	            }
 	            while(fgets(buf, sizeof(buf), this->current_file_handler) != NULL) {
 	                int len = strlen(buf);
@@ -342,26 +355,16 @@ void MainMenuScreen::parse_menu_line(uint16_t line)
 
               if ( only_if_playing_is_token) {
                   if (only_if_playing_is && THEPANEL->is_playing()) {
-                    THEPANEL->lcd->printf("%s", label.c_str());
                     line_processed = true; //TODO for debug, remove this
                   }
                   if (!only_if_playing_is && !THEPANEL->is_playing()) {
-                    THEPANEL->lcd->printf("%s", label.c_str());
                     line_processed = true; //TODO for debug, remove this
                   }
               }
-
-
-              //TODO we need to perform the action (if any)
-              //TODO we need to handle line_processed
-              //TODO we need to handle line:file position in directory is not 1:1
-
-              //TODO need to deal with the conditions that ensure the contents are displayed, therefore file_indexx++ is correct
-              filename_index++; // we have successfully processed a file
+              filename_index++; // we have successfully found a file, keep a note for the next time we are called so we start from this point in the list of files
 	        }
-          //line_processed = true; //TODO for debug, remove this
 	    }
-	 }
+	    return line_processed; // did we manage to find a valid file (to display)
 }
 
 void MainMenuScreen::clicked_menu_entry(uint16_t line)
