@@ -135,6 +135,7 @@ void MainMenuScreen::display_menu_line(uint16_t line)
   std::string current_file;
 	if ( current_line == 0 ) {
 	    THEPANEL->lcd->printf("..");
+	    filename_index = 1;
 	} else {
 	    //TODO need to iterate until the "ith" line is actually displayed
 	     //TODO may need a file counter so we know where we are in the directory as there is not a 1:1 map between lines on the screen and files
@@ -142,8 +143,9 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 //      THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 18).c_str());
 	    //make sure the path ends in a '/' note I could not .append ( ).append( ) as the second append never got added, no idea why!
 	    while(!line_processed) {
-	        current_file = this->file_at(current_line - 1, isdir).substr(0, max_path_length);
-	        if (current_file.empty()) { //empty file means we ahve been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
+	        //current_file = this->file_at(current_line - 1, isdir).substr(0, max_path_length);
+	        current_file = this->file_at(filename_index - 1, isdir).substr(0, max_path_length);
+	        if (current_file.empty()) { //empty file means we have been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
 	            line_processed = true;
 	            break;
 	        }
@@ -344,10 +346,14 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	            //TODO we need to work out all the conditions ('only_if...')
 
               if ( only_if_playing_is_token) {
-                  if (only_if_playing_is && THEPANEL->is_playing())
+                  if (only_if_playing_is && THEPANEL->is_playing()) {
                     THEPANEL->lcd->printf("%s", label.c_str());
-                  if (!only_if_playing_is && !THEPANEL->is_playing())
+                    line_processed = true; //TODO for debug, remove this
+                  }
+                  if (!only_if_playing_is && !THEPANEL->is_playing()) {
                     THEPANEL->lcd->printf("%s", label.c_str());
+                    line_processed = true; //TODO for debug, remove this
+                  }
               }
 
 
@@ -355,8 +361,10 @@ void MainMenuScreen::display_menu_line(uint16_t line)
               //TODO we need to handle line_processed
               //TODO we need to handle line:file position in directory is not 1:1
 
+              //TODO need to deal with the conditions that ensure the contents are displayed, therefore file_indexx++ is correct
+              filename_index++; // we have successfully processed a file
 	        }
-          line_processed = true; //TODO for debug, remove this
+          //line_processed = true; //TODO for debug, remove this
 	    }
 	 }
 }

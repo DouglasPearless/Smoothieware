@@ -37,6 +37,7 @@ class MainMenuScreen : public PanelScreen {
         std::string file_at(uint16_t line, bool& isdir);
         bool filter_file(const char *f);
         std::string filename;
+        uint16_t filename_index;
         std::string label;
         std::string title;
         FILE* current_file_handler;
