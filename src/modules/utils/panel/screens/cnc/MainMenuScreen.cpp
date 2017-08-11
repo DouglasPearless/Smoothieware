@@ -134,14 +134,9 @@ void MainMenuScreen::display_menu_line(uint16_t line)
       //TODO we need to handle line:file position in directory is not 1:1
 
       //TODO need to deal with the conditions that ensure the contents are displayed, therefore file_indexx++ is correct
-      if ( only_if_playing_is_token) {
-          if (only_if_playing_is && THEPANEL->is_playing()) {
+
             THEPANEL->lcd->printf("%s", label.c_str());
-          }
-          if (!only_if_playing_is && !THEPANEL->is_playing()) {
-            THEPANEL->lcd->printf("%s", label.c_str());
-          }
-      }
+
   }
 }
 
@@ -180,28 +175,40 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            //prepare tokens & variables
 	            only_if_playing_is_token=false;
 	            only_if_playing_is=false;
+	            only_if_playing_is_conditional=true;
 	            only_if_halted_is_token=false;
 	            only_if_halted_is=false;
+	            only_if_halted_is_conditional=true;
 	            only_if_suspended_is_token=false;
 	            only_if_suspended_is=false;
+	            only_if_suspended_is_conditional=true;
 	            only_if_file_is_gcode_token=false;
 	            only_if_file_is_gcode=false;
+	            only_if_file_is_gcode_conditional=true;
 	            only_if_extruder_token=false;
 	            only_if_extruder=false;
+	            only_if_extruder_conditional=true;
 	            only_if_temperature_control_token=false;
 	            only_if_temperature_control=false;
+	            only_if_temperature_control_conditional=true;
 	            only_if_laser_token=false;
 	            only_if_laser=false;
+	            only_if_laser_conditional=true;
 	            only_if_cnc_token=false;
 	            only_if_cnc=false;
+	            only_if_cnc_conditional=true;
 	            is_title_token=false;
 	            is_title=false;
+	            is_title_conditional=true;
 	            not_selectable_token=false;
 	            not_selectable=false;
+	            not_selectable_conditional=true;
 	            file_selector_token=false;
 	            file_selector=false;
+	            file_selector_conditional=true;
 	            action_token=false;
 	            action=false;
+	            action_conditional=true;
 	            label = "";
 	            title = "";
 
@@ -352,16 +359,41 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            //TODO if is_title the we need to format the label and keep it on the top line if we scroll
 
 	            //TODO we need to work out all the conditions ('only_if...')
-
+	            //Note never assume the use has put any given condition in only once
+	            //only_if_playing_is
               if ( only_if_playing_is_token) {
-                  if (only_if_playing_is && THEPANEL->is_playing()) {
-                    line_processed = true; //TODO for debug, remove this
-                  }
-                  if (!only_if_playing_is && !THEPANEL->is_playing()) {
-                    line_processed = true; //TODO for debug, remove this
-                  }
+                  if (only_if_playing_is  &&  THEPANEL->is_playing()) only_if_playing_is_conditional = true; else only_if_playing_is_conditional = false;
+                  if (!only_if_playing_is && !THEPANEL->is_playing()) only_if_playing_is_conditional = true; else only_if_playing_is_conditional = false;
               }
-              filename_index++; // we have successfully found a file, keep a note for the next time we are called so we start from this point in the list of files
+              // only_if_halted_is
+              if ( only_if_halted_is_token) {
+                  if (only_if_halted_is  &&  THEKERNEL->is_halted()) only_if_halted_is_conditional = true; else only_if_halted_is_conditional = false;
+                  if (!only_if_halted_is && !THEKERNEL->is_halted()) only_if_halted_is_conditional = true; else only_if_halted_is_conditional = false;
+              }
+              //only_if_suspended_is
+              if ( only_if_suspended_is_token) {
+                  if (only_if_suspended_is  &&  THEPANEL->is_suspended()) only_if_suspended_is_conditional = true; else only_if_suspended_is_conditional = false;
+                  if (!only_if_suspended_is && !THEPANEL->is_suspended()) only_if_suspended_is_conditional = true; else only_if_suspended_is_conditional = false;
+              }
+              //only_if_file_is_gcode
+              if ( only_if_file_is_gcode_token) {
+                  if (only_if_file_is_gcode  &&   true) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
+                  if (!only_if_file_is_gcode && !false) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
+              }
+              if (only_if_playing_is_conditional &&
+                  only_if_halted_is_conditional &&
+                  only_if_suspended_is_conditional  &&
+                  only_if_file_is_gcode_conditional &&
+                  only_if_extruder_conditional &&
+                  only_if_temperature_control_conditional &&
+                  only_if_laser_conditional &&
+                  only_if_cnc_conditional &&
+                  is_title_conditional &&
+                  not_selectable_conditional &&
+                  file_selector_conditional &&
+                  action_conditional)
+                    line_processed = true;
+              filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
 	        }
 	    }
 	    return line_processed; // did we manage to find a valid file (to display)
