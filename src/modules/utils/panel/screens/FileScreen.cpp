@@ -94,7 +94,8 @@ void FileScreen::display_menu_line(uint16_t line)
 // When a line is clicked in the menu, act
 void FileScreen::clicked_line(uint16_t line)
 {
-    if ( line == 0 ) {
+//TODO we need to prevent the user from going higher than the path to the root menu folder.
+  if ( line == 0 ) {
         string path= THEKERNEL->current_path;
         if(path == "/") {
             // Exit file navigation

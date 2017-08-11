@@ -124,6 +124,12 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
+  parse_menu_line(line);
+}
+
+void MainMenuScreen::parse_menu_line(uint16_t line)
+{
+
   bool line_processed;
   uint16_t current_line;
 
@@ -137,36 +143,28 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	    THEPANEL->lcd->printf("..");
 	    filename_index = 1;
 	} else {
-	    //TODO need to iterate until the "ith" line is actually displayed
-	     //TODO may need a file counter so we know where we are in the directory as there is not a 1:1 map between lines on the screen and files
+	    //TODO need to iterate until the "ith" line is actually displayed - there is not a 1:1 map between lines on the screen and files
 	    bool isdir;
-//      THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 18).c_str());
-	    //make sure the path ends in a '/' note I could not .append ( ).append( ) as the second append never got added, no idea why!
+
 	    while(!line_processed) {
-	        //current_file = this->file_at(current_line - 1, isdir).substr(0, max_path_length);
 	        current_file = this->file_at(filename_index - 1, isdir).substr(0, max_path_length);
 	        if (current_file.empty()) { //empty file means we have been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
 	            line_processed = true;
 	            break;
 	        }
+	        //make sure the path ends in a '/'
 	        if (THEKERNEL->current_path.back() != '/')
 	            this->filename = THEKERNEL->current_path + '/' + current_file;
 	        else
 	           	this->filename = THEKERNEL->current_path + current_file;
-//	        THEPANEL->lcd->printf("%s", this->file_at(line - 1, isdir).substr(0, 19).c_str()); //TODO 19 should not be hard wired, it should the the panel character width - 2 places
 
 	        if(!isdir) {
-	            //THEPANEL->lcd->printf("%s", this->filename.c_str());
 	            //Now we need to open the file and interpret its contents
 
 	            char buf[130]; // lines up to 128 characters are allowed, anything longer is discarded
 	            bool discard = false;
 
-//	            if(this->current_file_handler != NULL) { //just in case it is open
-//	                fclose(this->current_file_handler);
-//	            }
-
-	            //prepare variables
+	            //prepare tokens & variables
 	            only_if_playing_is_token=false;
 	            only_if_playing_is=false;
 	            only_if_halted_is_token=false;
@@ -195,8 +193,9 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	            title = "";
 
 	            this->current_file_handler = fopen( this->filename.c_str(), "r");
+
 	            if(this->current_file_handler == NULL) {
-	                //stream->printf("File not found: %s\r\n", this->filename.c_str());  //this should never happen
+	                //this should never happen
 	                return;
 	            }
 	            while(fgets(buf, sizeof(buf), this->current_file_handler) != NULL) {
@@ -208,10 +207,6 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 	                        continue;
 	                    }
 	                    if(len == 1) continue; // empty line
-
-	                    //
-	                    ///THEPANEL->lcd->printf("%s", buf);
-	                    //
 
 	                    std::string str(buf);
 
@@ -237,7 +232,7 @@ void MainMenuScreen::display_menu_line(uint16_t line)
                       if (tokens.size()==0)
 	                      break; // No tokens, nothing to process
 
-                      // Note checksums are not const expressions when in debug mode, so don't use switch
+                      // Note checksums are not const expressions when in debug mode, so don't use switch statement
                       uint16_t token_checksum = get_checksum(tokens[0]);
 
                       if(token_checksum == label_en_checksum) {

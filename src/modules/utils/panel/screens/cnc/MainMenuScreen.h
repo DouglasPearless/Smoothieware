@@ -36,6 +36,7 @@ class MainMenuScreen : public PanelScreen {
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
         bool filter_file(const char *f);
+        void parse_menu_line(uint16_t line);
         std::string filename;
         uint16_t filename_index;
         std::string label;
