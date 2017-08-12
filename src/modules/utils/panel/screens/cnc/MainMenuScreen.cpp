@@ -53,7 +53,8 @@ MainMenuScreen::MainMenuScreen()
     this->watch_screen   = (new WatchScreen()   )->set_parent(this);
     this->file_screen    = (new FileScreen()    )->set_parent(this);
     this->prepare_screen = (new PrepareScreen() )->set_parent(this);
-    this->set_parent(this->watch_screen);
+    //this->set_parent(this->watch_screen);
+    this->set_parent(this); //TODO check that this is correct
 }
 
 // setup and enter the configure screen
@@ -108,7 +109,7 @@ void MainMenuScreen::setupConfigureScreen()
 void MainMenuScreen::on_enter()
 {
     THEPANEL->enter_menu_mode();
-    THEPANEL->setup_menu(THEPANEL->has_laser()?8:7);
+    THEPANEL->setup_menu(THEPANEL->has_laser()?8:7);  //DHP TODO
     this->refresh_menu();
 }
 
@@ -432,12 +433,15 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
   //because menu lines and files do not align 1:1 we have to rescan the lines starting at the first
   //so we know which menu line relates to which underlying file in the directory
   //TODO a better way would be to store the filename that generated a displayable menu line item
-
-  filename_index = 1; //force the parser to start at the 'line'th place
-  for (uint16_t i = THEPANEL->menu_start_line; i < THEPANEL->menu_start_line + min( THEPANEL->menu_rows, THEPANEL->panel_lines ); i++ ) {
+ if(line==0) {
+     this->enter_folder(menu_root);
+ } else {
+     filename_index = 1; //force the parser to start at the 'line'th place
+    for (uint16_t i = THEPANEL->menu_start_line; i < THEPANEL->menu_start_line + min( THEPANEL->menu_rows, THEPANEL->panel_lines ); i++ ) {
       found = this-parse_menu_line(line);
       if ((i+1)==line) break;
-  }
+    }
+ }
 
 
   //filename_index = line; //force the parser to start at the 'line'th place

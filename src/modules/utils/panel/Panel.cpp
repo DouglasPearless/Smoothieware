@@ -396,13 +396,15 @@ void Panel::idle_processing()
         if (mms->watch_screen != this->current_screen) {
             this->enter_screen(mms->watch_screen);
             // TODO do we need to reset any state?
+            this->enter_screen(this->top_screen); //DHP
         }
 
         return;
     }
 
     if(current_screen == NULL && this->idle_time > 20*4) {
-        this->enter_screen(mms->watch_screen);
+        //this->enter_screen(mms->watch_screen);
+        this->enter_screen(this->top_screen); //DHP
         return;
     }
 
@@ -421,7 +423,8 @@ void Panel::idle_processing()
             this->idle_time = 0;
             if(current_screen == NULL) {
                 // we were in startup screen so go to watch screen
-                this->enter_screen(mms->watch_screen);
+               // this->enter_screen(mms->watch_screen);
+                this->enter_screen(this->top_screen); //DHP
                 return;
             }
         }
