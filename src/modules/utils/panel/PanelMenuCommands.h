@@ -21,7 +21,8 @@
 #define action_checksum                         CHECKSUM("action")
 //actual actions as second parameter to an "action" are:
 #define goto_menu_checksum                      CHECKSUM("goto-menu")
-#define run_command                             CHECKSUM("Run-command")
+#define goto_watch_screen_checksum              CHECKSUM("goto-watch-screen")
+#define run_command                             CHECKSUM("run-command")
 #define control_axis                            CHECKSUM("control-axis")
 #define control_extruder                        CHECKSUM("control-extruder")
 #define file_select                             CHECKSUM("file-select")
