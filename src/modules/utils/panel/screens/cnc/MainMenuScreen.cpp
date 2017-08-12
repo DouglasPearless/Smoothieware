@@ -128,15 +128,7 @@ void MainMenuScreen::display_menu_line(uint16_t line)
       THEPANEL->lcd->printf("..");
       filename_index = 1;
   } else if (parse_menu_line(line)) {
-
-      //TODO we need to perform the action (if any)
-      //TODO we need to handle line_processed
-      //TODO we need to handle line:file position in directory is not 1:1
-
-      //TODO need to deal with the conditions that ensure the contents are displayed, therefore file_indexx++ is correct
-
-            THEPANEL->lcd->printf("%s", label.c_str());
-
+      THEPANEL->lcd->printf("%s", label.c_str());
   }
 }
 
@@ -207,6 +199,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            file_selector=false;
 	            file_selector_conditional=true;
 	            action_token=false;
+	            the_action_checksum=0;
 	            action=false;
 	            action_conditional=true;
 	            label = "";
@@ -335,10 +328,12 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                       } else if(token_checksum == action_checksum) {
                           action_token = true;
                           if(tokens.size()>=2) {
-                              // tokens[1] contains the action itself
-                              // tokens[2] contains the first parameter for the action
-                              // tokens[3] contains the optional second parameter
+                              // tokens[1] contains the first parameter for the action
+                              // tokens[2] contains the optional second parameter
+                              the_action_checksum = get_checksum(tokens[1]);
+                              the_action_parameter = tokens[2];
                               action = true;
+                              //NOTE: Only one action is supported, and if mor than one, only the last one is 'actioned'
                           }
                       } else if(tokens[0].substr(0,1).compare("#")==0) {
                           // A comment, skip
@@ -380,6 +375,21 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                   if (only_if_file_is_gcode  &&   true) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
                   if (!only_if_file_is_gcode && !false) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
               }
+
+              //only_if_extruder_conditional
+              //only_if_temperature_control_conditional
+              //only_if_laser_conditional
+              //only_if_cnc_conditional
+              //is_title_conditional
+              //not_selectable_conditional
+              //file_selector_conditional
+
+              //action_conditional
+              if ( action_token) {
+                  action_conditional = action;
+              }
+
+              //some of the conditionals will be come redundant as the logic for file-panel becomes complete; all possible conditions are considered at this point
               if (only_if_playing_is_conditional &&
                   only_if_halted_is_conditional &&
                   only_if_suspended_is_conditional  &&
@@ -401,6 +411,8 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 
 void MainMenuScreen::clicked_menu_entry(uint16_t line)
 {
+  bool found;
+  /*
     switch ( line ) {
         case 0: THEPANEL->enter_screen(this->watch_screen); break;
         case 1:
@@ -415,6 +427,31 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
         case 5: setupConfigureScreen(); break;
         case 6: THEPANEL->enter_screen((new ProbeScreen())->set_parent(this)); break;
         case 7: THEPANEL->enter_screen((new LaserScreen())->set_parent(this)); break; // self deleting, only used if THEPANEL->has_laser()
+    }
+    */
+  //because menu lines and files do not align 1:1 we have to rescan the lines starting at the first
+  //so we know which menu line relates to which underlying file in the directory
+  //TODO a better way would be to store the filename that generated a displayable menu line item
+
+  filename_index = 1; //force the parser to start at the 'line'th place
+  for (uint16_t i = THEPANEL->menu_start_line; i < THEPANEL->menu_start_line + min( THEPANEL->menu_rows, THEPANEL->panel_lines ); i++ ) {
+      found = this-parse_menu_line(line);
+      if ((i+1)==line) break;
+  }
+
+
+  //filename_index = line; //force the parser to start at the 'line'th place
+  if (found) { // a file was found
+  //      if (the_action_checksum >0) {
+            //TODO we need to get the tokens
+            //action_checksum;
+            //ction_parameter;
+            if (the_action_checksum==goto_menu_checksum){
+                THEPANEL->lcd->printf("I AM ALIVE");
+            } else if (the_action_checksum==goto_watch_screen_checksum){
+                THEPANEL->enter_screen(this->watch_screen);
+            }
+   //     }
     }
 }
 

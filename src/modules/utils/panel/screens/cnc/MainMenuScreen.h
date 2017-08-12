@@ -41,6 +41,8 @@ class MainMenuScreen : public PanelScreen {
         uint16_t filename_index;
         std::string label;
         std::string title;
+        uint16_t  the_action_checksum;
+        std::string the_action_parameter;
         FILE* current_file_handler;
         volatile struct {
             bool only_if_playing_is_token:1;
