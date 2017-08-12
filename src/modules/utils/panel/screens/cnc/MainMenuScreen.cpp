@@ -150,7 +150,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	    while(!line_processed) {
 	        current_file = this->file_at(filename_index - 1, isdir).substr(0, max_path_length);
 	        if (current_file.empty()) { //empty file means we have been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
-	            line_processed = true;
+	            line_processed = false;
 	            break;
 	        }
 	        //make sure the path ends in a '/'
