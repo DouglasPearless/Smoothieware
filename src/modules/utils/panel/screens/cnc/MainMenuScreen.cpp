@@ -435,6 +435,7 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
   //TODO a better way would be to store the filename that generated a displayable menu line item
  if(line==0) {
      this->enter_folder(menu_root);
+     found = false;
  } else {
      filename_index = 1; //force the parser to start at the 'line'th place
     for (uint16_t i = THEPANEL->menu_start_line; i < THEPANEL->menu_start_line + min( THEPANEL->menu_rows, THEPANEL->panel_lines ); i++ ) {
