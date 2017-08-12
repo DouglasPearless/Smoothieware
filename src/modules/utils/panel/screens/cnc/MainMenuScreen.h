@@ -11,7 +11,7 @@
 #include "PanelScreen.h"
 
 #define max_path_length 32
-#define menu_root "/sd/menu/main"
+#define menu_root "/sd/panel/menu/main"  //this must exist on the SD card
 
 class MainMenuScreen : public PanelScreen {
     public:

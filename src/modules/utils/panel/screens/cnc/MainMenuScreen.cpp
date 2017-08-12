@@ -45,7 +45,7 @@ MainMenuScreen::MainMenuScreen()
 	if (THEPANEL->internal_sd != nullptr){
 		//The SD Card is OK so lets start from the root and build a menu
 	    // reset to root directory, I think this is less confusing
-	    //this->enter_folder("/sd/menu/main");
+	    //this->enter_folder("/sd/panel/menu/main");
 	    this->enter_folder(menu_root);
 	}
     // Children screens
@@ -445,9 +445,10 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
   //      if (the_action_checksum >0) {
             //TODO we need to get the tokens
             //action_checksum;
-            //ction_parameter;
+            //action_parameter;
             if (the_action_checksum==goto_menu_checksum){
-                THEPANEL->lcd->printf("I AM ALIVE");
+                //now navigate to the new menu.
+                this->enter_folder(the_action_parameter);
             } else if (the_action_checksum==goto_watch_screen_checksum){
                 THEPANEL->enter_screen(this->watch_screen);
             }
@@ -465,7 +466,11 @@ void MainMenuScreen::abort_playing()
 // Enter a new folder
 void MainMenuScreen::enter_folder(std::string folder)
 {
-    // Remember where we are
+  // Remember where we are
+  //   make sure the path does not end in a '/'
+  if ((folder.size() >=1) && (folder.back() == '/')) //path is not root and ends in a '/' so remove it
+    THEKERNEL->current_path= folder.substr(0,folder.size()-1);
+  else
     THEKERNEL->current_path= folder;
 
     // We need the number of lines to setup the menu
@@ -488,7 +493,8 @@ uint16_t MainMenuScreen::count_folder_content()
     d = opendir(THEKERNEL->current_path.c_str());
     if (d != NULL) {
         while ((p = readdir(d)) != NULL) {
-            if((p->d_isdir && p->d_name[0] != '.') || filter_file(p->d_name)) count++;
+            //if((p->d_isdir && p->d_name[0] != '.') || filter_file(p->d_name)) count++; //This counter includes directories
+            if( filter_file(p->d_name) ) count++;
         }
         closedir(d);
         return count;
