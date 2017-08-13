@@ -57,6 +57,9 @@ class Panel : public Module {
         // Menu
         void enter_nop_mode();
         void enter_menu_mode(bool force= false);
+        bool is_menu_mode();
+        void enter_file_mode(bool force= false);
+        bool is_file_mode();
         void setup_menu(uint16_t rows, uint16_t lines);
         void setup_menu(uint16_t rows);
         void menu_update();
@@ -175,7 +178,7 @@ class Panel : public Module {
             volatile bool do_buttons:1;
             volatile bool do_encoder:1;
 
-            char mode:2;
+            char mode:3;
             char menu_offset:3;
             int encoder_click_resolution:3;
         };

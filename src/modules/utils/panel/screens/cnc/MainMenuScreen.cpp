@@ -40,6 +40,9 @@ using namespace std;
 
 MainMenuScreen::MainMenuScreen()
 {
+  THEPANEL->enter_menu_mode(); //start in menu mode
+  file_mode = false;
+
 	//we need to scan the sd card for the menu system
 
 	if (THEPANEL->internal_sd != nullptr){
@@ -49,10 +52,10 @@ MainMenuScreen::MainMenuScreen()
 	    this->enter_folder(menu_root);
 	}
     // Children screens
-    this->jog_screen     = (new JogScreen()     )->set_parent(this);
+    //this->jog_screen     = (new JogScreen()     )->set_parent(this);
     this->watch_screen   = (new WatchScreen()   )->set_parent(this);
-    this->file_screen    = (new FileScreen()    )->set_parent(this);
-    this->prepare_screen = (new PrepareScreen() )->set_parent(this);
+    //this->file_screen    = (new FileScreen()    )->set_parent(this);
+    //this->prepare_screen = (new PrepareScreen() )->set_parent(this);
     //this->set_parent(this->watch_screen);
     this->set_parent(this); //TODO check that this is correct
 }
@@ -125,12 +128,23 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
+  bool ok;
   if ( line == 0 ) {
       THEPANEL->lcd->printf("..");
       filename_index = 1;
-  } else if (parse_menu_line(line)) {
+  } else {
+    if (THEPANEL->is_menu_mode())
+      ok = parse_menu_line(line);
+    else
+      ok = parse_directory_file(line);
+    if (ok)
       THEPANEL->lcd->printf("%s", label.c_str());
   }
+}
+
+bool MainMenuScreen::parse_directory_file(uint16_t line) {
+  this->label="Bananas"; //TODO write some proper code!
+  return true;
 }
 
 bool MainMenuScreen::parse_menu_line(uint16_t line)
@@ -196,9 +210,9 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            not_selectable_token=false;
 	            not_selectable=false;
 	            not_selectable_conditional=true;
-	            file_selector_token=false;
-	            file_selector=false;
-	            file_selector_conditional=true;
+	            //file_select_token=false; //This is a special case as we must rememeber per menu iteration so set this at a higher calling level
+	            file_select=false;
+	            file_select_conditional=true;
 	            action_token=false;
 	            the_action_checksum=0;
 	            action=false;
@@ -319,12 +333,16 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                       } else if(token_checksum == not_selectable_checksum) {
                           not_selectable_token = true;
                           not_selectable = true; //TODO need a neat way to interpret a '0' or a '1'
-                      } else if(token_checksum == file_selector_checksum) {
-                          file_selector_token=true;
+                      } else if(token_checksum == file_select_checksum) {
+                          file_select_token=true;
                           if(tokens.size()>=2) {
                               // tokens[1] contains where to start exploring the system
                               // tokens[2] contains the path above which the user cannot go
-                                file_selector = true;
+                              file_selected = tokens[1];
+                              file_selected_root = tokens[2];
+                              file_select = true;
+                              file_mode = true; //prepare to go into file mode once this file is finished being processed
+                              THEPANEL->enter_file_mode(false);
                           }
                       } else if(token_checksum == action_checksum) {
                           action_token = true;
@@ -383,7 +401,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
               //only_if_cnc_conditional
               //is_title_conditional
               //not_selectable_conditional
-              //file_selector_conditional
+              //file_select_conditional
 
               //action_conditional
               if ( action_token) {
@@ -401,7 +419,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                   only_if_cnc_conditional &&
                   is_title_conditional &&
                   not_selectable_conditional &&
-                  file_selector_conditional &&
+                  file_select_conditional &&
                   action_conditional)
                     line_processed = true;
               filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
@@ -432,7 +450,6 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
     */
   //because menu lines and files do not align 1:1 we have to rescan the lines starting at the first
   //so we know which menu line relates to which underlying file in the directory
-  //TODO a better way would be to store the filename that generated a displayable menu line item
  if(line==0) {
      this->enter_folder(menu_root);
      found = false;
@@ -444,21 +461,19 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
     }
  }
 
-
-  //filename_index = line; //force the parser to start at the 'line'th place
   if (found) { // a file was found
-  //      if (the_action_checksum >0) {
-            //TODO we need to get the tokens
-            //action_checksum;
-            //action_parameter;
-            if (the_action_checksum==goto_menu_checksum){
-                //now navigate to the new menu.
-                this->enter_folder(the_action_parameter);
-            } else if (the_action_checksum==goto_watch_screen_checksum){
-                THEPANEL->enter_screen(this->watch_screen);
-            }
-   //     }
-    }
+
+      if (the_action_checksum==goto_menu_checksum){
+           //now navigate to the new menu.
+           this->enter_folder(the_action_parameter);
+       } else if (the_action_checksum==goto_watch_screen_checksum){
+           THEPANEL->enter_screen(this->watch_screen);
+       } else if (file_mode){
+           //file-select
+           THEPANEL->enter_file_mode(false);//change to a special menu mode where we are navigating the file system and not the menu system
+           this->enter_folder(file_selected);  //we only exit file mode when a file selection is made or we exit the directory
+       }
+   }
 }
 
 void MainMenuScreen::abort_playing()
@@ -483,7 +498,7 @@ void MainMenuScreen::enter_folder(std::string folder)
 
     // Setup menu
     THEPANEL->setup_menu(number_of_files_in_folder + 1); // same number of files as menu items
-    THEPANEL->enter_menu_mode();
+    //THEPANEL->enter_menu_mode();
 
     // Display menu
     this->refresh_menu();
@@ -516,7 +531,7 @@ string MainMenuScreen::file_at(uint16_t line, bool& isdir)
     d = opendir(THEKERNEL->current_path.c_str());
     if (d != NULL) {
         while ((p = readdir(d)) != NULL) {
-            // only filter files that have a .g in them and directories not starting with a .
+            // filter out files that start with a '.'
           if(((p->d_isdir && p->d_name[0] != '.') || filter_file(p->d_name)) && count++ == line ) {
                 isdir= p->d_isdir;
                 string fn= p->d_name;
@@ -530,10 +545,47 @@ string MainMenuScreen::file_at(uint16_t line, bool& isdir)
     isdir= false;
     return "";
 }
+// Find the "line"th file in the current folder
+uint16_t MainMenuScreen::file_size(string current_file)
+{
+    uint16_t size = 0;
 
-// only filter files that have a .g, .ngc or .nc in them and does not start with a .
+    DIR *d;
+    struct dirent *p;
+
+    d = opendir(THEKERNEL->current_path.c_str());
+    if (d != NULL) {
+        while ((p = readdir(d)) != NULL) {
+            // filter out files that start with a '.'
+          if((p->d_name[0] != '.') && (current_file.compare(p->d_name)==0)) { //if == 0 then compare is true
+                size = p->d_fsize;
+                closedir(d);
+                break;
+            }
+        }
+    }
+
+    if (d != NULL) closedir(d);
+    return size;
+}
+
+// only filter files that have a .txt in them and does not start with a .
 bool MainMenuScreen::filter_file(const char *f)
 {
     string fn= lc(f);
     return (fn.at(0) != '.') && (fn.find(".txt") != string::npos);
+}
+
+// only filter files that have a .gcode in them and does not start with a .
+bool MainMenuScreen::filter_file_gcode(const char *f)
+{
+    string fn= lc(f);
+    return (fn.at(0) != '.') && (fn.find(".gcode") != string::npos);
+}
+// play a file
+void MainMenuScreen::play(const char *path)
+{
+  std::string cmd;
+  cmd = string("play ").append(path);
+  send_command(cmd.c_str());
 }

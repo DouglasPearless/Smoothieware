@@ -76,6 +76,7 @@ Panel* Panel::instance= nullptr;
 #define CONTROL_MODE               1
 #define DIRECT_ENCODER_MODE        2
 #define NOP_MODE                   3
+#define FILE_MODE                  4
 
 Panel::Panel()
 {
@@ -444,6 +445,9 @@ void Panel::idle_processing()
             case CONTROL_MODE: // If we are in control mode
                 this->control_value_update();
                 break;
+            case FILE_MODE: // If we are in file mode and the position has changed
+                this->menu_update();
+                break;
         }
     }
 
@@ -497,6 +501,8 @@ uint32_t Panel::on_back(uint32_t dummy)
 {
     if (this->mode == MENU_MODE && this->current_screen != NULL && this->current_screen->parent != NULL) {
         this->enter_screen(this->current_screen->parent);
+    } else if (this->mode == FILE_MODE && this->current_screen != NULL && this->current_screen->parent != NULL) {
+        this->enter_screen(this->current_screen->parent);
     }
     return 0;
 }
@@ -543,7 +549,26 @@ void Panel::enter_menu_mode(bool force)
     this->menu_changed = force;
     encoder_cb_fnc= nullptr;
 }
-
+bool Panel::is_menu_mode() {
+  if (this->mode == MENU_MODE)
+    return true;
+  else
+    return false;
+}
+// Enter file mode
+void Panel::enter_file_mode(bool force)
+{
+    this->mode = FILE_MODE;
+    this->counter = &this->menu_selected_line;
+    this->menu_changed = force;
+    encoder_cb_fnc= nullptr;
+}
+bool Panel::is_file_mode() {
+  if (this->mode == FILE_MODE)
+    return true;
+  else
+    return false;
+}
 void Panel::setup_menu(uint16_t rows)
 {
     this->setup_menu(rows, min(rows, this->max_screen_lines()));

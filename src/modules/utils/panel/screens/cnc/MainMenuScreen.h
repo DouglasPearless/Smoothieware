@@ -29,15 +29,21 @@ class MainMenuScreen : public PanelScreen {
         PanelScreen* jog_screen;
         PanelScreen* prepare_screen;
 
+        void play(const char *path);
         void abort_playing();
         void setupConfigureScreen();
 
         void enter_folder(std::string folder);
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
+        uint16_t file_size(string current_file);
         bool filter_file(const char *f);
+        bool filter_file_gcode(const char *f);
         bool parse_menu_line(uint16_t line);
+        bool parse_directory_file(uint16_t line) ;
         std::string filename;
+        std::string file_selected;
+        std::string file_selected_root;
         uint16_t filename_index;
         std::string label;
         std::string title;
@@ -45,6 +51,7 @@ class MainMenuScreen : public PanelScreen {
         std::string the_action_parameter;
         FILE* current_file_handler;
         volatile struct {
+            bool file_mode:1;
             bool only_if_playing_is_token:1;
             bool only_if_playing_is:1;
             bool only_if_playing_is_conditional:1;
@@ -75,9 +82,9 @@ class MainMenuScreen : public PanelScreen {
             bool not_selectable_token:1;
             bool not_selectable:1;
             bool not_selectable_conditional:1;
-            bool file_selector_token:1;
-            bool file_selector:1;
-            bool file_selector_conditional:1;
+            bool file_select_token:1;
+            bool file_select:1;
+            bool file_select_conditional:1;
             bool action_token:1;
             bool action:1;
             bool action_conditional:1;

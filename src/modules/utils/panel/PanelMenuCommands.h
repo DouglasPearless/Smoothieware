@@ -15,17 +15,17 @@
 
 //other commands
 #define not_selectable_checksum                 CHECKSUM("not-selectable")
-#define file_selector_checksum                  CHECKSUM("file-selector")
+#define file_select_checksum                    CHECKSUM("file-select")
 
 //Actions
 #define action_checksum                         CHECKSUM("action")
 //actual actions as second parameter to an "action" are:
 #define goto_menu_checksum                      CHECKSUM("goto-menu")
 #define goto_watch_screen_checksum              CHECKSUM("goto-watch-screen")
-#define run_command                             CHECKSUM("run-command")
-#define control_axis                            CHECKSUM("control-axis")
-#define control_extruder                        CHECKSUM("control-extruder")
-#define file_select                             CHECKSUM("file-select")
+#define run_command_checksum                    CHECKSUM("run-command")
+#define control_axis_checksum                   CHECKSUM("control-axis")
+#define control_extruder_checksum               CHECKSUM("control-extruder")
+#define file_select_checksum                    CHECKSUM("file-select")
 #define display_watch_screen                    CHECKSUM("display-watch-screen")
 
 //National Language Support
