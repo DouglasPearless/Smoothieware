@@ -133,8 +133,13 @@ void MainMenuScreen::display_menu_line(uint16_t line)
       THEPANEL->lcd->printf("..");
       filename_index = 1;
   } else {
-    if (THEPANEL->is_menu_mode())
+    if (THEPANEL->is_menu_mode()) {
       ok = parse_menu_line(line);
+      if (THEPANEL->is_file_mode()) {
+          //we have just reached a file-selector so we need to change to file_mode to list the contents of the target directory
+          THEPANEL->lcd->printf("files");
+      }
+    }
     else
       ok = parse_directory_file(line);
     if (ok)
@@ -143,8 +148,30 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 }
 
 bool MainMenuScreen::parse_directory_file(uint16_t line) {
-  this->label="Bananas"; //TODO write some proper code!
-  return true;
+  bool line_processed;
+
+  //we need to read the nth 'line' file in the current menu directory, open the file and interpret it; if the file is not to be displayed
+  //the we need to open the next on in the directory listing, if there are no more, then simply return.
+
+  line_processed = false;
+  std::string current_file;
+
+  //TODO need to iterate until a file is found
+  bool isdir;
+  label = "";
+  while(!line_processed) {
+      current_file = this->file_at(filename_index - 1, isdir).substr(0, max_path_length);
+      if (current_file.empty()) { //empty file means we have been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
+          line_processed = false;
+          break;
+      }
+      if(isdir || this->filter_file_gcode(current_file.c_str())) {
+          label=current_file;
+          line_processed = true;
+          filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
+      }
+  }
+      return line_processed; // did we manage to find a valid file (to display)
 }
 
 bool MainMenuScreen::parse_menu_line(uint16_t line)
@@ -343,6 +370,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                               file_select = true;
                               file_mode = true; //prepare to go into file mode once this file is finished being processed
                               THEPANEL->enter_file_mode(false);
+                              THEKERNEL->current_path=file_selected; //NEW DHP
                           }
                       } else if(token_checksum == action_checksum) {
                           action_token = true;
