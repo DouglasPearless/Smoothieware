@@ -17,6 +17,7 @@
 #include "RotaryDeltaCalibration.h"
 #include "modules/tools/switch/SwitchPool.h"
 #include "modules/tools/temperatureswitch/TemperatureSwitch.h"
+#include "modules/tools/countertimer/CounterTimer.h"
 #include "modules/tools/drillingcycles/Drillingcycles.h"
 #include "FilamentDetector.h"
 #include "MotorDriverControl.h"
@@ -198,6 +199,10 @@ void init() {
     #endif
     #ifndef NO_UTILS_MOTORDRIVERCONTROL
     kernel->add_module( new MotorDriverControl(0) );
+    #endif
+    #ifndef NO_TOOLS_COUNTERTIMER
+    // Ideally loaded last
+    kernel->add_module( new(AHB0) CounterTimer() );
     #endif
     // Create and initialize USB stuff
     u.init();
