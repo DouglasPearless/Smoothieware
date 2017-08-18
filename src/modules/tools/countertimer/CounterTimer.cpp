@@ -6,17 +6,15 @@
 */
 
 /*
-TemperatureSwitch is an optional module that will automatically turn on or off a switch
-based on a setpoint temperature. It is commonly used to turn on/off a cooling fan or water pump
-to cool the hot end's cold zone. Specifically, it turns one of the small MOSFETs on or off.
+CounterTimer is an optional module that will automatically turn on or off a switch, generate an M-Code or invoke
+a menu in the new file-panel menu system.
 
-Author: Michael Hackney, mhackney@eclecticangler.com
+Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 */
 
 #include "CounterTimer.h"
 #include "libs/Module.h"
 #include "libs/Kernel.h"
-#include "modules/tools/temperaturecontrol/TemperatureControlPublicAccess.h"
 #include "SwitchPublicAccess.h"
 
 #include "utils.h"
@@ -26,21 +24,17 @@ Author: Michael Hackney, mhackney@eclecticangler.com
 #include "checksumm.h"
 #include "PublicData.h"
 #include "StreamOutputPool.h"
-#include "TemperatureControlPool.h"
 #include "mri.h"
 
 #define countertimer_checksum                    CHECKSUM("countertimer")
 #define enable_checksum                          CHECKSUM("enable")
-#define countertimer_hotend_checksum             CHECKSUM("hotend")
-#define countertimer_threshold_temp_checksum     CHECKSUM("threshold_temp")
+#define countertimer_threshold_seconds_checksum  CHECKSUM("threshold_seconds")
 #define countertimer_type_checksum               CHECKSUM("type")
 #define countertimer_switch_checksum             CHECKSUM("switch")
-#define countertimer_heatup_poll_checksum        CHECKSUM("heatup_poll")
-#define countertimer_cooldown_poll_checksum      CHECKSUM("cooldown_poll")
 #define countertimer_trigger_checksum            CHECKSUM("trigger")
 #define countertimer_inverted_checksum           CHECKSUM("inverted")
 #define countertimer_arm_command_checksum        CHECKSUM("arm_mcode")
-#define designator_checksum                           CHECKSUM("designator")
+#define countertimer_disarm_command_checksum     CHECKSUM("disarm_mcode")
 
 CounterTimer::CounterTimer()
 {
@@ -56,14 +50,14 @@ CounterTimer::~CounterTimer()
 void CounterTimer::on_module_loaded()
 {
     vector<uint16_t> modulist;
-    // allow for multiple temperature switches
+    // allow for multiple countertimers
     THEKERNEL->config->get_module_list(&modulist, countertimer_checksum);
     for (auto m : modulist) {
         load_config(m);
     }
 
     // no longer need this instance as it is just used to load the other instances
-    delete this;
+    //delete this; //TODO should these resources be kept or released?
 }
 
 CounterTimer* CounterTimer::load_config(uint16_t modcs)
@@ -73,98 +67,85 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
         return nullptr;
     }
 
-    // create a temperature control and load settings
-    char designator= 0;
-    string s= THEKERNEL->config->value(countertimer_checksum, modcs, designator_checksum)->by_default("")->as_string();
-    if(s.empty()){
-        // for backward compatibility temperatureswitch.hotend will need designator 'T' by default @DEPRECATED
-        if(modcs == countertimer_hotend_checksum) designator= 'T';
-
-    }else{
-        designator= s[0];
-    }
-
-    if(designator == 0) return nullptr; // no designator then not valid
+    // create a new countertimer module
+    CounterTimer *ct= new CounterTimer();
 
     // load settings from config file
     string switchname = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_checksum)->by_default("")->as_string();
     if(switchname.empty()) {
-        // handle old configs where this was called type @DEPRECATED
-        switchname = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_type_checksum)->by_default("")->as_string();
-        if(switchname.empty()) {
-            // no switch specified so invalid entry
-            THEKERNEL->streams->printf("WARNING TEMPERATURESWITCH: no switch specified\n");
-            return nullptr;
-        }
-    }
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch specified\n");
+       return nullptr;
+    } else ct->whoami = switchname;
 
-    // create a new temperature switch module
-    CounterTimer *ts= new CounterTimer();
 
-    // save designator
-    ts->designator= designator;
+    string switchtype = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_type_checksum)->by_default("MULTISHOT")->as_string();
+    if(switchtype == "singleshot") ct->repeatable = SINGLESHOT;
+    else ct->repeatable= MULTISHOT;
 
     // if we should turn the switch on or off when trigger is hit
-    ts->inverted = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_inverted_checksum)->by_default(false)->as_bool();
+    ct->inverted = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_inverted_checksum)->by_default(false)->as_bool();
 
-    // if we should trigger when above and below, or when rising through, or when falling through the specified temp
+    // if we should trigger when above and below, or when below through, or when above through the specified temp
     string trig = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_trigger_checksum)->by_default("level")->as_string();
-    if(trig == "level") ts->trigger= LEVEL;
-    else if(trig == "rising") ts->trigger= RISING;
-    else if(trig == "falling") ts->trigger= FALLING;
-    else ts->trigger= LEVEL;
+    if(trig == "level") ct->trigger= LEVEL;
+    else if(trig == "below") ct->trigger= BELOW;
+    else ct->trigger= LEVEL;
 
     // the mcode used to arm the switch
-    ts->arm_mcode = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_arm_command_checksum)->by_default(0)->as_number();
+    ct->arm_mcode = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_arm_command_checksum)->by_default(0)->as_number();
 
-    ts->countertimer_switch_cs= get_checksum(switchname); // checksum of the switch to use
+    // the mcode used to disarm the switch
+    ct->disarm_mcode = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_disarm_command_checksum)->by_default(0)->as_number();
 
-    ts->countertimer_threshold_temp = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_threshold_temp_checksum)->by_default(50.0f)->as_number();
+    ct->countertimer_switch_cs= get_checksum(switchname); // checksum of the switch to use
 
-    // these are to tune the heatup and cooldown polling frequencies
-    ts->countertimer_heatup_poll = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_heatup_poll_checksum)->by_default(15)->as_number();
-    ts->countertimer_cooldown_poll = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_cooldown_poll_checksum)->by_default(60)->as_number();
-    ts->current_delay = ts->countertimer_heatup_poll;
+    ct->countertimer_threshold_seconds = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_threshold_seconds_checksum)->by_default(50.0f)->as_number();
 
     // set initial state
-    ts->current_state= NONE;
-    ts->second_counter = ts->current_delay; // do test immediately on first second_tick
+    ct->current_state= NONE;
+    ct->second_counter = 0; // do test immediately on first second_tick
     // if not defined then always armed, otherwise start out disarmed
-    ts->armed= (ts->arm_mcode == 0);
+    ct->armed= (ct->arm_mcode == 0);
 
     // Register for events
-    ts->register_for_event(ON_SECOND_TICK);
+    ct->register_for_event(ON_SECOND_TICK);
 
-    if(ts->arm_mcode != 0) {
-        ts->register_for_event(ON_GCODE_RECEIVED);
+    if(ct->arm_mcode != 0) {
+        ct->register_for_event(ON_GCODE_RECEIVED);
     }
-    return ts;
+    return ct;
 }
 
 void CounterTimer::on_gcode_received(void *argument)
 {
     Gcode *gcode = static_cast<Gcode *>(argument);
+
     if(gcode->has_m && gcode->m == this->arm_mcode) {
-        this->armed= (gcode->has_letter('S') && gcode->get_value('S') != 0);
-        gcode->stream->printf("temperature switch %s\n", this->armed ? "armed" : "disarmed");
+        this->armed = true;
+        this->current_state = BELOW_THRESHOLD;
+        gcode->stream->printf("timercounter %s armed\n",whoami.c_str());
+    }
+    if(gcode->has_m && gcode->m == this->disarm_mcode) {
+        this->armed = false;
+        this->current_state = NONE;
+        gcode->stream->printf("timercounter %s disarmed\n", whoami.c_str());
     }
 }
 
-// Called once a second but we only need to service on the cooldown and heatup poll intervals
+// Called once a second
 void CounterTimer::on_second_tick(void *argument)
 {
-    second_counter++;
-    if (second_counter < current_delay) return;
+  if (!this->armed) return; //nothing happening
 
-    second_counter = 0;
-    float current_temp = this->get_highest_temperature();
+  if (this->current_state == NONE) return; //not in an operational state
 
-    if (current_temp >= this->countertimer_threshold_temp) {
-        set_state(HIGH_TEMP);
+  second_counter++;
 
-    } else {
-        set_state(LOW_TEMP);
-   }
+  if (second_counter >= this->countertimer_threshold_seconds) {
+        set_state(THRESHOLD);
+  } else {
+        set_state(BELOW_THRESHOLD);
+  }
 }
 
 void CounterTimer::set_state(STATE state)
@@ -175,52 +156,36 @@ void CounterTimer::set_state(STATE state)
     switch(this->trigger) {
         case LEVEL:
             // switch on or off depending on HIGH or LOW
-            set_switch(state == HIGH_TEMP);
-            break;
-
-        case RISING:
-            // switch on if rising edge
-            if(this->current_state == LOW_TEMP && state == HIGH_TEMP) set_switch(true);
-            break;
-
-        case FALLING:
-            // switch off if falling edge
-            if(this->current_state == HIGH_TEMP && state == LOW_TEMP) set_switch(false);
-            break;
-    }
-
-    this->current_delay = state == HIGH_TEMP ? this->countertimer_cooldown_poll : this->countertimer_heatup_poll;
-    this->current_state= state;
-}
-
-// Get the highest temperature from the set of temperature controllers
-float CounterTimer::get_highest_temperature()
-{
-    float high_temp = 0.0;
-
-    std::vector<struct pad_temperature> controllers;
-    bool ok = PublicData::get_value(temperature_control_checksum, poll_controls_checksum, &controllers);
-    if (ok) {
-        for (auto &c : controllers) {
-            // check if this controller's temp is the highest and save it if so
-            if (c.designator[0] == this->designator && c.current_temperature > high_temp) {
-                high_temp = c.current_temperature;
+            set_switch(state == THRESHOLD);
+            second_counter = 0;
+            if (this->repeatable == SINGLESHOT) {
+               this->current_state = NONE;
+               this->armed = false; //turn it off
+               THEKERNEL->streams->printf("timercounter %s triggered\n",whoami.c_str());
+            } else {
+                this->current_state = BELOW_THRESHOLD;
             }
-        }
-    }
+            break;
 
-    return high_temp;
+        case BELOW:
+            // switch on if below edge
+            //if(this->current_state == BELOW_THRESHOLD) set_switch(true);
+            set_switch(state == BELOW_THRESHOLD);
+            this->current_state= state;
+            break;
+    }
 }
 
 // Turn the switch on (true) or off (false)
 void CounterTimer::set_switch(bool switch_state)
 {
+
     if(!this->armed) return; // do not actually switch anything if not armed
 
     if(this->arm_mcode != 0 && this->trigger != LEVEL) {
         // if edge triggered we only trigger once per arming, if level triggered we switch as long as we are armed
         this->armed= false;
-    }
+    } //TODO WE NEED TO FIX AND CHECK THIS LOGI ABOVE
 
     if(this->inverted) switch_state= !switch_state; // turn switch on or off inverted
 

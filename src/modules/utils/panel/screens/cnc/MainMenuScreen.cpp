@@ -135,6 +135,26 @@ void MainMenuScreen::display_menu_line(uint16_t line)
   } else {
     if (THEPANEL->is_menu_mode()) {
       ok = parse_menu_line(line);
+    }
+    if (THEPANEL->is_file_mode()) {
+      //we have just reached a file-selector so we need to change to file_mode to list the contents of the target directory
+      ok = parse_directory_file(line);
+    }
+    if (ok)
+      THEPANEL->lcd->printf("%s", label.c_str());
+  }
+}
+
+/*
+ * void MainMenuScreen::display_menu_line(uint16_t line)
+{
+  bool ok;
+  if ( line == 0 ) {
+      THEPANEL->lcd->printf("..");
+      filename_index = 1;
+  } else {
+    if (THEPANEL->is_menu_mode()) {
+      ok = parse_menu_line(line);
       if (THEPANEL->is_file_mode()) {
           //we have just reached a file-selector so we need to change to file_mode to list the contents of the target directory
           THEPANEL->lcd->printf("files");
@@ -146,7 +166,8 @@ void MainMenuScreen::display_menu_line(uint16_t line)
       THEPANEL->lcd->printf("%s", label.c_str());
   }
 }
-
+ *
+ */
 bool MainMenuScreen::parse_directory_file(uint16_t line) {
   bool line_processed;
 
