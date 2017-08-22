@@ -31,6 +31,7 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 #define countertimer_threshold_seconds_checksum  CHECKSUM("threshold_seconds")
 #define countertimer_type_checksum               CHECKSUM("type")
 #define countertimer_switch_checksum             CHECKSUM("switch")
+#define countertimer_menu_checksum               CHECKSUM("menu")
 #define countertimer_trigger_checksum            CHECKSUM("trigger")
 #define countertimer_inverted_checksum           CHECKSUM("inverted")
 #define countertimer_arm_command_checksum        CHECKSUM("arm_mcode")
@@ -57,7 +58,7 @@ void CounterTimer::on_module_loaded()
     }
 
     // no longer need this instance as it is just used to load the other instances
-    //delete this; //TODO should these resources be kept or released?
+    //delete this; //TODO should these resources be kept or released? uncommented 2017-08-22
 }
 
 CounterTimer* CounterTimer::load_config(uint16_t modcs)
@@ -77,8 +78,9 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
        return nullptr;
     } else ct->whoami = switchname;
 
+    ct->menu = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_menu_checksum)->by_default(0)->as_string();
 
-    string switchtype = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_type_checksum)->by_default("MULTISHOT")->as_string();
+    string switchtype = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_type_checksum)->by_default("")->as_string();
     if(switchtype == "singleshot") ct->repeatable = SINGLESHOT;
     else ct->repeatable= MULTISHOT;
 
@@ -150,18 +152,22 @@ void CounterTimer::on_second_tick(void *argument)
 
 void CounterTimer::set_state(STATE state)
 {
+    vector<uint16_t> modulist;
     if(state == this->current_state) return; // state did not change
 
     // state has changed
     switch(this->trigger) {
         case LEVEL:
             // switch on or off depending on HIGH or LOW
-            set_switch(state == THRESHOLD);
+            set_switch(state == THRESHOLD); //TODO we need to iterate through all the define switches
             second_counter = 0;
             if (this->repeatable == SINGLESHOT) {
                this->current_state = NONE;
                this->armed = false; //turn it off
                THEKERNEL->streams->printf("timercounter %s triggered\n",whoami.c_str());
+               //TODO lastly we want to trigger the menu
+               THEKERNEL->current_path = this->menu.c_str();
+               THEPANEL->menu_update(); //orce the panel to update the menu
             } else {
                 this->current_state = BELOW_THRESHOLD;
             }

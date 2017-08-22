@@ -17,6 +17,7 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 
 using namespace std;
 
+#include "Panel.h"
 #include "libs/Module.h"
 #include <string>
 #include <vector>
@@ -62,6 +63,9 @@ class CounterTimer : public Module
 
         //name of the countertimer
         std::string whoami;
+
+        //name of the menu that is called after al the switches are processed
+        std::string menu;
 
         struct {
             bool inverted:1;
