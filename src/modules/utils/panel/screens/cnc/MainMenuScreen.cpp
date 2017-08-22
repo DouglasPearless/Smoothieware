@@ -248,6 +248,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            title = "";
 
 	            this->current_file_handler = fopen( this->filename.c_str(), "r");
+	            //this->current_file_handler = fopen( "/sd/panel/main/01-watch.txt", "r");
 
 	            if(this->current_file_handler == NULL) {
 	                //this should never happen
@@ -450,8 +451,9 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                   file_select_conditional &&
                   action_conditional)
                     line_processed = true;
-              filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
+//              filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
 	        }
+          filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
 	    }
 	    return line_processed; // did we manage to find a valid file (to display)
 }

@@ -202,7 +202,8 @@ void init() {
     #endif
     #ifndef NO_TOOLS_COUNTERTIMER
     // Ideally loaded last
-    kernel->add_module( new(AHB0) CounterTimer() );
+    //kernel->add_module( new(AHB0) CounterTimer() );
+    kernel->add_module( new CounterTimer() );
     #endif
     // Create and initialize USB stuff
     u.init();
