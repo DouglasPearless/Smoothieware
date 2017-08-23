@@ -33,6 +33,8 @@ public:
     virtual int idle_timeout_secs(){ return 10; }
 
     friend class Panel;
+    friend class CounterTimer;
+
 protected:
     void get_current_pos(float *p);
     void send_gcode(std::string g);

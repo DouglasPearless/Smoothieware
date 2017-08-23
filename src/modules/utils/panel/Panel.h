@@ -182,6 +182,7 @@ class Panel : public Module {
             char menu_offset:3;
             int encoder_click_resolution:3;
         };
+        friend class CounterTimer;
 };
 
 #endif

@@ -89,6 +89,7 @@ class MainMenuScreen : public PanelScreen {
             bool action:1;
             bool action_conditional:1;
         };
+        friend class CounterTimer;
 };
 
 

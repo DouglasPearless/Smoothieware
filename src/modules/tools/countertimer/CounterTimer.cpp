@@ -58,7 +58,7 @@ void CounterTimer::on_module_loaded()
     }
 
     // no longer need this instance as it is just used to load the other instances
-    //delete this; //TODO should these resources be kept or released? uncommented 2017-08-22
+    delete this; //TODO should these resources be kept or released? uncommented 2017-08-22
 }
 
 CounterTimer* CounterTimer::load_config(uint16_t modcs)
@@ -167,7 +167,13 @@ void CounterTimer::set_state(STATE state)
                THEKERNEL->streams->printf("timercounter %s triggered\n",whoami.c_str());
                //TODO lastly we want to trigger the menu
                THEKERNEL->current_path = this->menu.c_str();
-               THEPANEL->menu_update(); //orce the panel to update the menu
+               PanelScreen* current_screen = THEPANEL->current_screen;
+               //current_screen->refresh_screen(true);
+
+               THEPANEL->setup_menu(THEPANEL->max_screen_lines());
+
+               current_screen->refresh_menu(true);
+               //THEPANEL->menu_update(); //force the panel to update the menu
             } else {
                 this->current_state = BELOW_THRESHOLD;
             }

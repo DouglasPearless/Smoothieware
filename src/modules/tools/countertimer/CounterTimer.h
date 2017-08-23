@@ -18,6 +18,8 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 using namespace std;
 
 #include "Panel.h"
+#include "PanelScreen.h"
+#include "MainMenuScreen.h"
 #include "libs/Module.h"
 #include <string>
 #include <vector>
