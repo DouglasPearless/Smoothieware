@@ -172,8 +172,8 @@ void CounterTimer::set_state(STATE state)
 
                THEPANEL->setup_menu(THEPANEL->max_screen_lines());
 
-               current_screen->refresh_menu(true);
-               //THEPANEL->menu_update(); //force the panel to update the menu
+               //current_screen->refresh_menu(true);
+               THEPANEL->menu_update(); //force the panel to update the menu
             } else {
                 this->current_state = BELOW_THRESHOLD;
             }
