@@ -16,6 +16,7 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 #include "libs/Module.h"
 #include "libs/Kernel.h"
 #include "SwitchPublicAccess.h"
+#include <vector>
 
 #include "utils.h"
 #include "Gcode.h"
@@ -30,7 +31,11 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 #define enable_checksum                          CHECKSUM("enable")
 #define countertimer_threshold_seconds_checksum  CHECKSUM("threshold_seconds")
 #define countertimer_type_checksum               CHECKSUM("type")
-#define countertimer_switch_checksum             CHECKSUM("switch")
+#define countertimer_switch_1_checksum           CHECKSUM("switch_1")
+#define countertimer_switch_2_checksum           CHECKSUM("switch_2")
+#define countertimer_switch_3_checksum           CHECKSUM("switch_3")
+#define countertimer_switch_4_checksum           CHECKSUM("switch_4")
+#define countertimer_switch_5_checksum           CHECKSUM("switch_5")
 #define countertimer_menu_checksum               CHECKSUM("menu")
 #define countertimer_trigger_checksum            CHECKSUM("trigger")
 #define countertimer_inverted_checksum           CHECKSUM("inverted")
@@ -72,11 +77,51 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
     CounterTimer *ct= new CounterTimer();
 
     // load settings from config file
-    string switchname = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_checksum)->by_default("")->as_string();
-    if(switchname.empty()) {
-       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch specified\n");
-       return nullptr;
-    } else ct->whoami = switchname;
+    // load up to 5 switches
+    ct->store[0] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_1_checksum)->by_default("")->as_string();
+    if(ct->store[0].empty()) {
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_1 specified\n");
+//       return nullptr;
+    } else {
+        ct->whoami = ct->store[0];
+        switch_1_cs = get_checksum(ct->store[0]);
+    }
+
+    ct->store[1] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_2_checksum)->by_default("")->as_string();
+    if(ct->store[1].empty()) {
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_2 specified\n");
+//       return nullptr;
+    } else {
+        ct->whoami = ct->store[1];
+        switch_2_cs = get_checksum(ct->store[1]);
+    }
+
+    ct->store[2] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_3_checksum)->by_default("")->as_string();
+    if(ct->store[2].empty()) {
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_3 specified\n");
+//       return nullptr;
+    } else {
+        ct->whoami = ct->store[2];
+        switch_3_cs = get_checksum(ct->store[2]);
+    }
+
+    ct->store[3] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_4_checksum)->by_default("")->as_string();
+    if(ct->store[3].empty()) {
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_4 specified\n");
+ //      return nullptr;
+    } else {
+        ct->whoami = ct->store[3];
+        switch_4_cs = get_checksum(ct->store[3]);
+    }
+
+    ct->store[4] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_5_checksum)->by_default("")->as_string();
+    if(ct->store[4].empty()) {
+       THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_5 specified\n");
+//       return nullptr;
+    } else {
+        ct->whoami = ct->store[4];
+        switch_5_cs = get_checksum(ct->store[4]);
+    }
 
     ct->menu = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_menu_checksum)->by_default(0)->as_string();
 
@@ -99,7 +144,7 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
     // the mcode used to disarm the switch
     ct->disarm_mcode = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_disarm_command_checksum)->by_default(0)->as_number();
 
-    ct->countertimer_switch_cs= get_checksum(switchname); // checksum of the switch to use
+//    ct->countertimer_switch_cs= get_checksum(switchname); // checksum of the switch to use
 
     ct->countertimer_threshold_seconds = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_threshold_seconds_checksum)->by_default(50.0f)->as_number();
 
@@ -159,7 +204,12 @@ void CounterTimer::set_state(STATE state)
     switch(this->trigger) {
         case LEVEL:
             // switch on or off depending on HIGH or LOW
-            set_switch(state == THRESHOLD); //TODO we need to iterate through all the define switches
+
+           for (auto& t : this->store)
+           {
+               if (!t.empty())
+                 set_switch(get_checksum(t), state == THRESHOLD);
+            }
             second_counter = 0;
             if (this->repeatable == SINGLESHOT) {
                this->current_state = NONE;
@@ -181,15 +231,18 @@ void CounterTimer::set_state(STATE state)
 
         case BELOW:
             // switch on if below edge
-            //if(this->current_state == BELOW_THRESHOLD) set_switch(true);
-            set_switch(state == BELOW_THRESHOLD);
+            for( auto& kv : this->store ) {
+
+                if (!kv.empty())
+              set_switch(get_checksum(kv), state == BELOW_THRESHOLD); //TODO we need to iterate through all the define switches
+            }
             this->current_state= state;
             break;
     }
 }
 
 // Turn the switch on (true) or off (false)
-void CounterTimer::set_switch(bool switch_state)
+void CounterTimer::set_switch(uint16_t countertimer_switch_cs, bool switch_state)
 {
 
     if(!this->armed) return; // do not actually switch anything if not armed
@@ -203,7 +256,7 @@ void CounterTimer::set_switch(bool switch_state)
 
     // get current switch state
     struct pad_switch pad;
-    bool ok = PublicData::get_value(switch_checksum, this->countertimer_switch_cs, 0, &pad);
+    bool ok = PublicData::get_value(switch_checksum, countertimer_switch_cs, 0, &pad);
     if (!ok) {
         THEKERNEL->streams->printf("// Failed to get switch state.\r\n");
         return;
@@ -211,7 +264,7 @@ void CounterTimer::set_switch(bool switch_state)
 
     if(pad.state == switch_state) return; // switch is already in the requested state
 
-    ok = PublicData::set_value(switch_checksum, this->countertimer_switch_cs, state_checksum, &switch_state);
+    ok = PublicData::set_value(switch_checksum, countertimer_switch_cs, state_checksum, &switch_state);
     if (!ok) {
         THEKERNEL->streams->printf("// Failed changing switch state.\r\n");
     }

@@ -38,21 +38,26 @@ class CounterTimer : public Module
         bool is_armed() const { return armed; }
 
     private:
+        //in this case we store a vector of the switch names not their checksums otherwise we have to continually
+        //read the config cache whenever we trigger which is very time consuming
+
+        std::array<std::string,5> store;
+
         enum TRIGGER_TYPE {LEVEL, BELOW};
         enum STATE {NONE, THRESHOLD, BELOW_THRESHOLD};
         enum REPEATABLE {SINGLESHOT, MULTISHOT};
 
         // turn the switch on or off
-        void set_switch(bool cooler_state);
+        void set_switch(uint16_t countertimer_switch_cs, bool switch_state);
 
-        // temperature has changed state
+        // changed state
         void set_state(STATE state);
 
         // countertimer.hotend.threshold_temp
         float countertimer_threshold_seconds;
 
-        // countertimer.hotend.switch
-        uint16_t countertimer_switch_cs;
+//        // countertimer.hotend.switch
+//        uint16_t countertimer_switch_cs;
 
         // our internal second counter
         uint16_t second_counter;
@@ -68,6 +73,8 @@ class CounterTimer : public Module
 
         //name of the menu that is called after al the switches are processed
         std::string menu;
+
+        uint16_t switch_1_cs,switch_2_cs,switch_3_cs,switch_4_cs,switch_5_cs;
 
         struct {
             bool inverted:1;
