@@ -31,11 +31,16 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 #define enable_checksum                          CHECKSUM("enable")
 #define countertimer_threshold_seconds_checksum  CHECKSUM("threshold_seconds")
 #define countertimer_type_checksum               CHECKSUM("type")
-#define countertimer_switch_1_checksum           CHECKSUM("switch_1")
+#define countertimer_switch_1_checksum           CHECKSUM("switch_1") //TODO turn the switches in to a vector of objects
 #define countertimer_switch_2_checksum           CHECKSUM("switch_2")
 #define countertimer_switch_3_checksum           CHECKSUM("switch_3")
 #define countertimer_switch_4_checksum           CHECKSUM("switch_4")
 #define countertimer_switch_5_checksum           CHECKSUM("switch_5")
+#define countertimer_switch_1_set_to_checksum    CHECKSUM("switch_1_set_to")
+#define countertimer_switch_2_set_to_checksum    CHECKSUM("switch_2_set_to")
+#define countertimer_switch_3_set_to_checksum    CHECKSUM("switch_3_set_to")
+#define countertimer_switch_4_set_to_checksum    CHECKSUM("switch_4_set_to")
+#define countertimer_switch_5_set_to_checksum    CHECKSUM("switch_5_set_to")
 #define countertimer_menu_checksum               CHECKSUM("menu")
 #define countertimer_trigger_checksum            CHECKSUM("trigger")
 #define countertimer_inverted_checksum           CHECKSUM("inverted")
@@ -75,52 +80,50 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
 
     // create a new countertimer module
     CounterTimer *ct= new CounterTimer();
+    //this->designator
+    ct->whoami = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_checksum)->by_default(string(""))->as_string();
+
 
     // load settings from config file
     // load up to 5 switches
-    ct->store[0] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_1_checksum)->by_default("")->as_string();
-    if(ct->store[0].empty()) {
+    ct->switches_to_trigger[0] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_1_checksum)->by_default("")->as_string();
+    if(ct->switches_to_trigger[0].empty()) {
        THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_1 specified\n");
-//       return nullptr;
     } else {
-        ct->whoami = ct->store[0];
-        switch_1_cs = get_checksum(ct->store[0]);
+        ct->switch_1_cs = get_checksum(ct->switches_to_trigger[0]);
+        ct->switches_triggered_state[0] = (THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_1_set_to_checksum)->as_bool() == true);
     }
 
-    ct->store[1] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_2_checksum)->by_default("")->as_string();
-    if(ct->store[1].empty()) {
+    ct->switches_to_trigger[1] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_2_checksum)->by_default("")->as_string();
+    if(ct->switches_to_trigger[1].empty()) {
        THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_2 specified\n");
-//       return nullptr;
     } else {
-        ct->whoami = ct->store[1];
-        switch_2_cs = get_checksum(ct->store[1]);
+        ct->switch_2_cs = get_checksum(ct->switches_to_trigger[1]);
+        ct->switches_triggered_state[1] = (THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_2_set_to_checksum)->as_bool() == true);
     }
 
-    ct->store[2] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_3_checksum)->by_default("")->as_string();
-    if(ct->store[2].empty()) {
+    ct->switches_to_trigger[2] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_3_checksum)->by_default("")->as_string();
+    if(ct->switches_to_trigger[2].empty()) {
        THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_3 specified\n");
-//       return nullptr;
     } else {
-        ct->whoami = ct->store[2];
-        switch_3_cs = get_checksum(ct->store[2]);
+        ct->switch_3_cs = get_checksum(ct->switches_to_trigger[2]);
+        ct->switches_triggered_state[2] = (THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_3_set_to_checksum)->as_bool() == true);
     }
 
-    ct->store[3] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_4_checksum)->by_default("")->as_string();
-    if(ct->store[3].empty()) {
+    ct->switches_to_trigger[3] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_4_checksum)->by_default("")->as_string();
+    if(ct->switches_to_trigger[3].empty()) {
        THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_4 specified\n");
- //      return nullptr;
     } else {
-        ct->whoami = ct->store[3];
-        switch_4_cs = get_checksum(ct->store[3]);
+        ct->switch_4_cs = get_checksum(ct->switches_to_trigger[3]);
+        ct->switches_triggered_state[3] = (THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_4_set_to_checksum)->as_bool() == true);
     }
 
-    ct->store[4] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_5_checksum)->by_default("")->as_string();
-    if(ct->store[4].empty()) {
+    ct->switches_to_trigger[4] = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_5_checksum)->by_default("")->as_string();
+    if(ct->switches_to_trigger[4].empty()) {
        THEKERNEL->streams->printf("WARNING TIMERCOUNTER: no switch_5 specified\n");
-//       return nullptr;
     } else {
-        ct->whoami = ct->store[4];
-        switch_5_cs = get_checksum(ct->store[4]);
+        ct->switch_5_cs = get_checksum(ct->switches_to_trigger[4]);
+        ct->switches_triggered_state[4] = (THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_switch_5_set_to_checksum)->as_bool() == true);
     }
 
     ct->menu = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_menu_checksum)->by_default(0)->as_string();
@@ -205,10 +208,13 @@ void CounterTimer::set_state(STATE state)
         case LEVEL:
             // switch on or off depending on HIGH or LOW
 
-           for (auto& t : this->store)
+           for (auto& t : this->switches_to_trigger)
            {
-               if (!t.empty())
-                 set_switch(get_checksum(t), state == THRESHOLD);
+               if (!t.empty()) {
+                 int pos = &t-&this->switches_to_trigger[0]; // pos contains the position in the vector
+                 //set_switch(get_checksum(t), state == THRESHOLD);
+                 set_switch(get_checksum(t), this->switches_triggered_state[pos]);
+               }
             }
             second_counter = 0;
             if (this->repeatable == SINGLESHOT) {
@@ -231,10 +237,18 @@ void CounterTimer::set_state(STATE state)
 
         case BELOW:
             // switch on if below edge
-            for( auto& kv : this->store ) {
+            for( auto& t : this->switches_to_trigger ) {
 
+                if (!t.empty()) {
+                  int pos = &t-&this->switches_to_trigger[0]; // pos contains the position in the vector
+                  //set_switch(get_checksum(t), state == THRESHOLD);
+                  set_switch(get_checksum(t), this->switches_triggered_state[pos]);
+                }
+/*
                 if (!kv.empty())
-              set_switch(get_checksum(kv), state == BELOW_THRESHOLD); //TODO we need to iterate through all the define switches
+              //set_switch(get_checksum(kv), state == BELOW_THRESHOLD); //TODO we need to iterate through all the define switches
+                  set_switch(get_checksum(kv), state == BELOW_THRESHOLD); //TODO we need to iterate through all the define switches
+*/
             }
             this->current_state= state;
             break;

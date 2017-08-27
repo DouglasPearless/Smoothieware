@@ -41,7 +41,8 @@ class CounterTimer : public Module
         //in this case we store a vector of the switch names not their checksums otherwise we have to continually
         //read the config cache whenever we trigger which is very time consuming
 
-        std::array<std::string,5> store;
+        std::array<std::string,5> switches_to_trigger;
+        std::array<bool,5> switches_triggered_state;
 
         enum TRIGGER_TYPE {LEVEL, BELOW};
         enum STATE {NONE, THRESHOLD, BELOW_THRESHOLD};
