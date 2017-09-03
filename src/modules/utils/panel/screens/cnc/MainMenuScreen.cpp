@@ -38,6 +38,10 @@ using namespace std;
 
 #define extruder_checksum CHECKSUM("extruder")
 
+
+//THEPANEL->lcd->setLed(LED_BED_ON, bed_on);
+
+
 MainMenuScreen::MainMenuScreen()
 {
   THEPANEL->enter_menu_mode(); //start in menu mode
@@ -128,14 +132,14 @@ void MainMenuScreen::on_refresh()
 
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
-  bool ok;
+  bool ok = false;
   if ( line == 0 ) {
       THEPANEL->lcd->printf("..");
       filename_index = 1;
   } else {
     if (THEPANEL->is_menu_mode()) {
       ok = parse_menu_line(line);
-    }
+    } else
     if (THEPANEL->is_file_mode()) {
       //we have just reached a file-selector so we need to change to file_mode to list the contents of the target directory
       ok = parse_directory_file(line);
@@ -235,7 +239,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            not_selectable_token=false;
 	            not_selectable=false;
 	            not_selectable_conditional=true;
-	            //file_select_token=false; //This is a special case as we must rememeber per menu iteration so set this at a higher calling level
+	            //file_select_token=false; //This is a special case as we must remember per menu iteration so set this at a higher calling level
 	            file_select=false;
 	            file_select_conditional=true;
 	            action_token=false;
@@ -246,7 +250,6 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            title = "";
 
 	            this->current_file_handler = fopen( this->filename.c_str(), "r");
-	            //this->current_file_handler = fopen( "/sd/panel/main/01-watch.txt", "r");
 
 	            if(this->current_file_handler == NULL) {
 	                //this should never happen
@@ -379,14 +382,13 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                               the_action_checksum = get_checksum(tokens[1]);
                               the_action_parameter = tokens[2];
                               action = true;
-                              //NOTE: Only one action is supported, and if mor than one, only the last one is 'actioned'
+                              //NOTE: Only one action is supported, and if more than one, only the last one is 'actioned'
                           }
                       } else if(tokens[0].substr(0,1).compare("#")==0) {
                           // A comment, skip
 //                          break;
                       } else {
                         //we have a problem, an unknown token
-                          //TODO check if a comment (line starts with a #)
                       }
 	                } else {
 	                    // discard long line
@@ -458,7 +460,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 
 void MainMenuScreen::clicked_menu_entry(uint16_t line)
 {
-  bool found;
+  bool found = false;
   /*
     switch ( line ) {
         case 0: THEPANEL->enter_screen(this->watch_screen); break;
