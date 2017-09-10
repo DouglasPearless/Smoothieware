@@ -32,18 +32,24 @@ class MainMenuScreen : public PanelScreen {
         void play(const char *path);
         void abort_playing();
         void setupConfigureScreen();
-
+        void run_command();
         void enter_folder(std::string folder);
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
+        std::string file_at_gcode(uint16_t line, bool& isdir);
         uint16_t file_size(string current_file);
         bool filter_file(const char *f);
         bool filter_file_gcode(const char *f);
         bool parse_menu_line(uint16_t line);
-        bool parse_directory_file(uint16_t line) ;
+        bool parse_directory_file(uint16_t line);
+        void process_file_gcode(uint16_t line);
+        std::string current_gcode_dir;
         std::string filename;
+        std::string file_start;
         std::string file_selected;
+        unsigned long file_selected_size;
         std::string file_selected_root;
+        std::string file_menu; //when in file mode, this is the menu to execute once a file is selected
         uint16_t filename_index;
         std::string label;
         std::string title;
@@ -84,6 +90,8 @@ class MainMenuScreen : public PanelScreen {
             bool not_selectable_conditional:1;
             bool file_select_token:1;
             bool file_select:1;
+            bool file_selector_token:1;
+            bool file_selector:1;
             bool file_select_conditional:1;
             bool action_token:1;
             bool action:1;
@@ -91,10 +99,4 @@ class MainMenuScreen : public PanelScreen {
         };
         friend class CounterTimer;
 };
-
-
-
-
-
-
 #endif

@@ -15,7 +15,7 @@
 
 //other commands
 #define not_selectable_checksum                 CHECKSUM("not-selectable")
-#define file_select_checksum                    CHECKSUM("file-select")
+#define file_selector_checksum                  CHECKSUM("file-selector")
 
 //Actions
 #define action_checksum                         CHECKSUM("action")

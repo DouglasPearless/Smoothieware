@@ -46,6 +46,9 @@ MainMenuScreen::MainMenuScreen()
 {
   THEPANEL->enter_menu_mode(); //start in menu mode
   file_mode = false;
+  file_select=false; //reset and file-select in progress;
+  file_selected = ""; //make sure we do not have a selected file stored
+  file_selected_size = 0; //and set the file size to 0 bytes
 
 	//we need to scan the sd card for the menu system
 
@@ -133,6 +136,8 @@ void MainMenuScreen::on_refresh()
 void MainMenuScreen::display_menu_line(uint16_t line)
 {
   bool ok = false;
+  string::size_type file_index_str_1 = string::npos;
+
   if ( line == 0 ) {
       THEPANEL->lcd->printf("..");
       filename_index = 1;
@@ -141,10 +146,29 @@ void MainMenuScreen::display_menu_line(uint16_t line)
       ok = parse_menu_line(line);
     } else
     if (THEPANEL->is_file_mode()) {
-      //we have just reached a file-selector so we need to change to file_mode to list the contents of the target directory
+      //we have just reached a file-select so we need to change to file_mode to list the GCODE contents of the target directory
       ok = parse_directory_file(line);
     }
     if (ok)
+      //TODO we need to check if the flag has been set to identify if there is a *f (file) or *s (file size), and it so substitute for actual value
+      file_index_str_1 = label.find_first_of('*');
+      if (file_index_str_1 != string::npos) {
+          if (label.find_first_of("fF",file_index_str_1+1) != string::npos) {
+              //We have a label that ends in *f or *F so we need to substitute for the file name
+              label = label.substr(0,file_index_str_1); //remove the *f or *F
+              label.append(file_selected);
+          } else  if (label.find_first_of("sS",file_index_str_1+1) != string::npos) {
+              //We have a label that ends in *s or *S so we need to substitute for the file size
+              label = label.substr(0,file_index_str_1); //remove the *s or *S
+
+              char buffer [sizeof(file_selected_size)*8+1]; //allocate a temporary buffer to convert a number to a string as to_string() is not supported
+              sprintf(buffer, "%d", file_selected_size);
+              string size_str = buffer;
+              //std::string size_str = "487";
+              label.append(size_str);
+          }
+      }
+
       THEPANEL->lcd->printf("%s", label.c_str());
   }
 }
@@ -152,28 +176,33 @@ void MainMenuScreen::display_menu_line(uint16_t line)
 bool MainMenuScreen::parse_directory_file(uint16_t line) {
   bool line_processed;
 
-  //we need to read the nth 'line' file in the current menu directory, open the file and interpret it; if the file is not to be displayed
+  //we need to read the nth 'line' file in the current directory, open the file and interpret it; if the file is not to be displayed
   //the we need to open the next on in the directory listing, if there are no more, then simply return.
 
   line_processed = false;
   std::string current_file;
+  uint16_t current_line;
 
   //TODO need to iterate until a file is found
   bool isdir;
   label = "";
+  current_line = filename_index; //start at the last remembered place
   while(!line_processed) {
-      current_file = this->file_at(filename_index - 1, isdir).substr(0, max_path_length);
+      current_file = this->file_at_gcode(current_line - 1, isdir).substr(0, max_path_length);
       if (current_file.empty()) { //empty file means we have been through all the files from the 'line'th position to the end of the directory and not found a valid file to display
           line_processed = false;
+          //TODO Do we need to update the filename_index to the current_line even if we fail?
           break;
       }
       if(isdir || this->filter_file_gcode(current_file.c_str())) {
           label=current_file;
           line_processed = true;
+          filename_index = current_line;
           filename_index++; // we have found the next file, keep a note for the next time we are called so we start from this point in the list of files
       }
+      current_line++;
   }
-      return line_processed; // did we manage to find a valid file (to display)
+  return line_processed; // did we manage to find a valid file (to display)
 }
 
 bool MainMenuScreen::parse_menu_line(uint16_t line)
@@ -240,7 +269,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            not_selectable=false;
 	            not_selectable_conditional=true;
 	            //file_select_token=false; //This is a special case as we must remember per menu iteration so set this at a higher calling level
-	            file_select=false;
+	            //file_select=false;  //This is set per menu not per menu line
 	            file_select_conditional=true;
 	            action_token=false;
 	            the_action_checksum=0;
@@ -305,6 +334,8 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                             // skip delimiters at the start of the line
                             string::size_type three = str.find_first_not_of(delimiters, two);
 
+                            std::string file_index_selector = label; //TODO temporary copy filename
+
                             label = str.substr(three,str.size()-three-1);
 
                         }
@@ -366,14 +397,26 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                           file_select_token=true;
                           if(tokens.size()>=2) {
                               // tokens[1] contains where to start exploring the system
-                              // tokens[2] contains the path above which the user cannot go
-                              file_selected = tokens[1];
-                              file_selected_root = tokens[2];
+                              // tokens[2] contains the path to the menu to execute once a file is selected
+                              file_start = tokens[1];
+                              file_menu = tokens[2];
                               file_select = true;
                               file_mode = true; //prepare to go into file mode once this file is finished being processed
                               THEPANEL->enter_file_mode(false);
-                              THEKERNEL->current_path=file_selected; //NEW DHP
+                              THEKERNEL->current_path=file_start; //NEW DHP
                           }
+                      } else if(token_checksum == file_selector_checksum) {
+                               file_selector_token=true;
+                               if(tokens.size()>=2) {
+                                    // tokens[1] contains where to start exploring the system
+                                    // tokens[2] contains the path above which the user cannot go
+                                    file_start = tokens[1];
+                                    file_selected_root = tokens[2];
+                                    file_selector = true;
+                                    //file_mode = true; //prepare to go into file mode once this file is finished being processed
+                                    //THEPANEL->enter_file_mode(false);
+                                    THEKERNEL->current_path=file_start; //NEW DHP
+                               }
                       } else if(token_checksum == action_checksum) {
                           action_token = true;
                           if(tokens.size()>=2) {
@@ -420,8 +463,15 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
               }
               //only_if_file_is_gcode
               if ( only_if_file_is_gcode_token) {
-                  if (only_if_file_is_gcode  &&   true) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
-                  if (!only_if_file_is_gcode && !false) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
+                  bool found_gcode;
+                  std::size_t found_place = file_selected.rfind(".gcode");
+
+                  if (found_place!=std::string::npos) // if we found something, make sure the file ends in ".gcode" and not something like ".gcode.txt"
+                    {
+                      found_gcode = ((file_selected.size()-6) == found_place);
+                    }
+                  if (only_if_file_is_gcode  && found_gcode ) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
+                  //if (!only_if_file_is_gcode && !found_gcode) only_if_file_is_gcode_conditional = true; else only_if_file_is_gcode_conditional = false;
               }
 
               //only_if_extruder_conditional
@@ -481,12 +531,18 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
   //because menu lines and files do not align 1:1 we have to rescan the lines starting at the first
   //so we know which menu line relates to which underlying file in the directory
  if(line==0) {
+     THEPANEL->enter_menu_mode(false); //TODO this crudely forces back to the the main menu system rather than allow to go up a directory
      this->enter_folder(menu_root);
      found = false;
  } else {
      filename_index = 1; //force the parser to start at the 'line'th place
     for (uint16_t i = THEPANEL->menu_start_line; i < THEPANEL->menu_start_line + min( THEPANEL->menu_rows, THEPANEL->panel_lines ); i++ ) {
-      found = this-parse_menu_line(line);
+
+      if (THEPANEL->is_file_mode())
+         found = parse_directory_file(line);
+      else
+        found = this-parse_menu_line(line);
+
       if ((i+1)==line) break;
     }
  }
@@ -498,12 +554,38 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
            this->enter_folder(the_action_parameter);
        } else if (the_action_checksum==goto_watch_screen_checksum){
            THEPANEL->enter_screen(this->watch_screen);
-       } else if (file_mode){
-           //file-select
-           THEPANEL->enter_file_mode(false);//change to a special menu mode where we are navigating the file system and not the menu system
-           this->enter_folder(file_selected);  //we only exit file mode when a file selection is made or we exit the directory
+       } else if (the_action_checksum==run_command_checksum) {
+           this->run_command();//run the command
+       } else if (THEPANEL->is_file_mode()){
+           //file-select the user has selected a GCODE file and we now need to display a menu to allow an action to be performed on that file
+           this->process_file_gcode(line);  //we only exit file mode when a file selection is made or we exit the directory
        }
    }
+}
+
+void MainMenuScreen::run_command() {
+  //the_action_parameter contains the action (nominally "play" or "rm") and file_selected contains the file to perform the action on
+  std::string action_this = the_action_parameter;
+  action_this.append(" ");
+  action_this.append(current_gcode_dir);
+  action_this.append("/");
+  action_this.append(file_selected);
+  send_command(action_this.c_str());
+  THEPANEL->enter_menu_mode(); //Now that we have actioned the command, we flip back into menu mode and start again at the root menu
+  this->enter_folder(menu_root);
+}
+void MainMenuScreen::process_file_gcode(uint16_t line)
+{
+  bool isdir;
+  //TODO we need to take the 'line' file and action it based on the contents of the 'file_menu' folder
+  //note the line-1 is required as we have to remove the ".." line 0 which is always present on a menu screen
+  if (line>0) {
+      file_selected = this->file_at_gcode(line-1,isdir); //What is the file we are going to process in some way
+      file_selected_size = file_size(file_selected);
+      //Note that the variable 'label' also contains the name of the file too, but we are making sure in case something happens to the 'label'
+      THEPANEL->enter_menu_mode(); //Now that we have selected a gcode file, we flip back into menu mode to process the files as a menu
+      this->enter_folder(file_menu);
+  }
 }
 
 void MainMenuScreen::abort_playing()
@@ -526,9 +608,8 @@ void MainMenuScreen::enter_folder(std::string folder)
     // We need the number of lines to setup the menu
     uint16_t number_of_files_in_folder = this->count_folder_content();
 
-    // Setup menu
+    // Setup menu screen
     THEPANEL->setup_menu(number_of_files_in_folder + 1); // same number of files as menu items
-    //THEPANEL->enter_menu_mode();
 
     // Display menu
     this->refresh_menu();
@@ -576,6 +657,30 @@ string MainMenuScreen::file_at(uint16_t line, bool& isdir)
     return "";
 }
 // Find the "line"th file in the current folder
+string MainMenuScreen::file_at_gcode(uint16_t line, bool& isdir)
+{
+    DIR *d;
+    struct dirent *p;
+    uint16_t count = 0;
+    d = opendir(THEKERNEL->current_path.c_str());
+    if (d != NULL) {
+        while ((p = readdir(d)) != NULL) {
+            // filter out files that start with a '.'
+          if(((p->d_isdir && p->d_name[0] != '.') || filter_file_gcode(p->d_name)) && count++ == line ) {
+                isdir= p->d_isdir;
+                string fn= p->d_name;
+                current_gcode_dir = THEKERNEL->current_path.c_str();
+                closedir(d);
+                return fn;
+            }
+        }
+    }
+
+    if (d != NULL) closedir(d);
+    isdir= false;
+    return "";
+}
+// Find the "line"th file in the current folder
 uint16_t MainMenuScreen::file_size(string current_file)
 {
     uint16_t size = 0;
@@ -590,13 +695,13 @@ uint16_t MainMenuScreen::file_size(string current_file)
           if((p->d_name[0] != '.') && (current_file.compare(p->d_name)==0)) { //if == 0 then compare is true
                 size = p->d_fsize;
                 closedir(d);
-                break;
+                return size;
             }
         }
     }
 
     if (d != NULL) closedir(d);
-    return size;
+    return 0;
 }
 
 // only filter files that have a .txt in them and does not start with a .
