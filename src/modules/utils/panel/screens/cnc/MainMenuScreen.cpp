@@ -144,12 +144,11 @@ void MainMenuScreen::display_menu_line(uint16_t line)
   } else {
     if (THEPANEL->is_menu_mode()) {
       ok = parse_menu_line(line);
-    } else
-    if (THEPANEL->is_file_mode()) {
+    } else if (THEPANEL->is_file_mode()) {
       //we have just reached a file-select so we need to change to file_mode to list the GCODE contents of the target directory
       ok = parse_directory_file(line);
     }
-    if (ok)
+    if (ok) {
       //TODO we need to check if the flag has been set to identify if there is a *f (file) or *s (file size), and it so substitute for actual value
       file_index_str_1 = label.find_first_of('*');
       if (file_index_str_1 != string::npos) {
@@ -167,9 +166,9 @@ void MainMenuScreen::display_menu_line(uint16_t line)
               //std::string size_str = "487";
               label.append(size_str);
           }
-      }
-
+       }
       THEPANEL->lcd->printf("%s", label.c_str());
+    }
   }
 }
 
@@ -572,7 +571,8 @@ void MainMenuScreen::run_command() {
   action_this.append(file_selected);
   send_command(action_this.c_str());
   THEPANEL->enter_menu_mode(); //Now that we have actioned the command, we flip back into menu mode and start again at the root menu
-  this->enter_folder(menu_root);
+  //this->enter_folder(menu_root);
+  THEPANEL->enter_screen(this->watch_screen);
 }
 void MainMenuScreen::process_file_gcode(uint16_t line)
 {
