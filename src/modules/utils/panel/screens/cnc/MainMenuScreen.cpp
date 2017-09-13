@@ -11,11 +11,11 @@
 #include "LcdBase.h"
 #include "MainMenuScreen.h"
 #include "WatchScreen.h"
-#include "FileScreen.h"
-#include "JogScreen.h"
-#include "ControlScreen.h"
-#include "PrepareScreen.h"
-#include "ProbeScreen.h"
+//#include "FileScreen.h"
+//#include "JogScreen.h"
+//#include "ControlScreen.h"
+//#include "PrepareScreen.h"
+//#include "ProbeScreen.h"
 #include "libs/nuts_bolts.h"
 #include "libs/utils.h"
 #include "modules/utils/player/PlayerPublicAccess.h"
@@ -540,7 +540,7 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
       if (THEPANEL->is_file_mode())
          found = parse_directory_file(line);
       else
-        found = this-parse_menu_line(line);
+        found = this->parse_menu_line(line);
 
       if ((i+1)==line) break;
     }

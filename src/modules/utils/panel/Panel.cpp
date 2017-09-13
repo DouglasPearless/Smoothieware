@@ -198,9 +198,9 @@ void Panel::on_module_loaded()
     this->down_button.set_longpress_delay(longpress_delay);
     this->left_button.set_longpress_delay(longpress_delay);
     this->right_button.set_longpress_delay(longpress_delay);
-//    this->click_button.set_longpress_delay(longpress_delay);
-//    this->back_button.set_longpress_delay(longpress_delay);
-//    this->pause_button.set_longpress_delay(longpress_delay);
+    this->click_button.set_longpress_delay(longpress_delay);
+    this->back_button.set_longpress_delay(longpress_delay);
+    //this->pause_button.set_longpress_delay(longpress_delay);
 
     THEKERNEL->slow_ticker->attach( 50,  this, &Panel::button_tick );
     if(lcd->encoderReturnsDelta()) {

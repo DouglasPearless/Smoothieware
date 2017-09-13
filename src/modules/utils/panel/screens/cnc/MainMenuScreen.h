@@ -25,9 +25,9 @@ class MainMenuScreen : public PanelScreen {
 
     private:
         PanelScreen* watch_screen;
-        PanelScreen* file_screen;
-        PanelScreen* jog_screen;
-        PanelScreen* prepare_screen;
+//        PanelScreen* file_screen;
+//        PanelScreen* jog_screen;
+//        PanelScreen* prepare_screen;
 
         void play(const char *path);
         void abort_playing();
