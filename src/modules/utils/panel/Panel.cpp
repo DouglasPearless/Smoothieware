@@ -160,7 +160,7 @@ void Panel::on_module_loaded()
     }
 
     // these need to be called here as they need the config cache loaded as they enumerate modules
-    this->custom_screen= new CustomScreen();
+    this->custom_screen= new CustomScreen(); //TODO IS THIS NEEDED ANYMORE DHP
 
     // some panels may need access to this global info
     this->lcd->setPanel(this);
@@ -796,8 +796,8 @@ void Panel::on_second_tick(void *arg)
             // go to the play screen and the /ext directory
             // TODO we don't want to do this if we just booted and card was already in
             THEKERNEL->current_path= "/ext";
-            MainMenuScreen *mms= static_cast<MainMenuScreen*>(this->top_screen);
-            THEPANEL->enter_screen(mms->file_screen);
+//TODO Do we need this now DHP 2017-09-15?            MainMenuScreen *mms= static_cast<MainMenuScreen*>(this->top_screen);
+//TODO Do we need this now DHP 2017-09-15?            THEPANEL->enter_screen(mms->file_screen);
 
         }else if(this->extmounter != nullptr && !this->sdcd_pin.get()){
             mount_external_sd(false);
