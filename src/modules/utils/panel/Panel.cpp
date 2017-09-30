@@ -775,7 +775,8 @@ bool Panel::mount_external_sd(bool on)
         void *v = AHB0.alloc(n);
         memset(v, 0, n); // clear the allocated memory
         this->extmounter= new(v) SDFAT("ext", this->sd); // use cleared allocated memory
-        this->sd->disk_initialize(); // first one seems to fail, but works next time
+        int rc = this->sd->disk_initialize(); // first one seems to fail, but works next time
+        if (rc) return false;
         THEKERNEL->streams->printf("External SDcard mounted as /ext\n");
     }else{
         delete this->extmounter;
@@ -792,13 +793,13 @@ void Panel::on_second_tick(void *arg)
     // sd insert detect, mount sdcard if inserted, unmount if removed
     if(this->sdcd_pin.connected()) {
         if(this->extmounter == nullptr && this->sdcd_pin.get()) {
-            mount_external_sd(true);
+            if( mount_external_sd(true)) {
             // go to the play screen and the /ext directory
             // TODO we don't want to do this if we just booted and card was already in
             THEKERNEL->current_path= "/ext";
-//TODO Do we need this now DHP 2017-09-15?            MainMenuScreen *mms= static_cast<MainMenuScreen*>(this->top_screen);
-//TODO Do we need this now DHP 2017-09-15?            THEPANEL->enter_screen(mms->file_screen);
-
+//            MainMenuScreen *mms= static_cast<MainMenuScreen*>(this->top_screen); //TODO Do we need this now DHP 2017-09-15?
+//            THEPANEL->enter_screen(mms->file_screen); //TODO Do we need this now DHP 2017-09-15?
+            }
         }else if(this->extmounter != nullptr && !this->sdcd_pin.get()){
             mount_external_sd(false);
         }

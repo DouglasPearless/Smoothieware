@@ -277,7 +277,8 @@ int SDCard::disk_initialize()
         return 1;
     }
 
-    _spi.frequency(2500000); // Set to 2.5MHz for data transfer
+    //_spi.frequency(2500000); // Set to 2.5MHz for data transfer
+    _spi.frequency(1000000); // Set to 1.0MHz for data transfer
 
     busyflag = false;
 
@@ -457,15 +458,15 @@ int SDCard::_read(char *buffer, int length) {
     _cs = 0;
 
     // read until start byte (0xFF)
-    while(_spi.write(0xFF) != 0xFE);
-//     uint8_t r;
-//     while((r = _spi.write(0xFF)) != 0xFE)
-//     {
-//         iprintf("0x%02X ", r);
+//    while(_spi.write(0xFF) != 0xFE);
+     uint8_t r;
+     while((r = _spi.write(0xFF)) != 0xFE)
+     {
+         iprintf("0x%02X ", r);
 //         for (volatile uint32_t j = 262144; j; j--);
-//     }
-//
-//     iprintf("Got start byte, reading data\n");
+     }
+
+     iprintf("Got start byte, reading data\n");
 
     // read data
     for(int i=0; i<length; i++) {
