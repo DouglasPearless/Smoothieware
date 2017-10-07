@@ -27,6 +27,7 @@ Author: Douglas Pearless, Douglas.Pearless@pearless.co.nz
 #include "StreamOutputPool.h"
 #include "mri.h"
 
+#define startup_state_checksum                   CHECKSUM("startup_state")
 #define countertimer_checksum                    CHECKSUM("countertimer")
 #define enable_checksum                          CHECKSUM("enable")
 #define countertimer_threshold_seconds_checksum  CHECKSUM("threshold_seconds")
@@ -151,14 +152,20 @@ CounterTimer* CounterTimer::load_config(uint16_t modcs)
 
     ct->countertimer_threshold_seconds = THEKERNEL->config->value(countertimer_checksum, modcs, countertimer_threshold_seconds_checksum)->by_default(50.0f)->as_number();
 
-    // set initial state
-    ct->current_state= NONE;
     ct->second_counter = 0; // do test immediately on first second_tick
-    // if not defined then always armed, otherwise start out disarmed
-    ct->armed= (ct->arm_mcode == 0);
 
-    // Register for events
-    ct->register_for_event(ON_SECOND_TICK);
+    ct->armed= (ct->arm_mcode == 0); // if not defined then always armed, otherwise start out disarmed
+
+    //What state should the initial state be at power on, default of NONE
+    ct->switch_state = THEKERNEL->config->value(countertimer_checksum, modcs, startup_state_checksum )->by_default(false)->as_bool();
+    if (ct->switch_state) {
+      ct->current_state= BELOW_THRESHOLD;
+      ct->armed=true;
+    }
+    else
+      ct->current_state= NONE;
+
+    ct->register_for_event(ON_SECOND_TICK); // Register for events
 
     if(ct->arm_mcode != 0) {
         ct->register_for_event(ON_GCODE_RECEIVED);

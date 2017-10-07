@@ -78,11 +78,12 @@ class CounterTimer : public Module
         uint16_t switch_1_cs,switch_2_cs,switch_3_cs,switch_4_cs,switch_5_cs;
 
         struct {
-            bool inverted:1;
-            bool armed:1;
-            TRIGGER_TYPE trigger:1;
-            STATE current_state:2;
-            REPEATABLE repeatable:1;
+            bool          inverted:1;
+            bool          armed:1;
+            TRIGGER_TYPE  trigger:1;
+            STATE         current_state:2;
+            REPEATABLE    repeatable:1;
+            bool          switch_state:1;
         };
 };
 

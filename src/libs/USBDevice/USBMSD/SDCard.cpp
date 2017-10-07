@@ -277,8 +277,9 @@ int SDCard::disk_initialize()
         return 1;
     }
 
-    //_spi.frequency(2500000); // Set to 2.5MHz for data transfer
-    _spi.frequency(1000000); // Set to 1.0MHz for data transfer
+    _spi.frequency(2500000); // Set to 2.5MHz for data transfer
+    //_spi.frequency(1000000); // Set to 1.0MHz for data transfer
+    //_spi.frequency(100000);    // Set to 0.1MHz for data transfer
 
     busyflag = false;
 
@@ -322,11 +323,12 @@ int SDCard::disk_read(char *buffer, uint32_t block_number)
     }
 
     // receive the data
-    _read(buffer, 512);
+    int rc =0; //Did we read the SD Card properly?
+    rc = _read(buffer, 512);
 
     busyflag = false;
 
-    return 0;
+    return rc;
 }
 
 int SDCard::disk_status() { return (_sectors > 0)?0:1; }
@@ -455,29 +457,39 @@ int SDCard::_cmd8() {
 }
 
 int SDCard::_read(char *buffer, int length) {
+
     _cs = 0;
 
     // read until start byte (0xFF)
 //    while(_spi.write(0xFF) != 0xFE);
      uint8_t r;
-     while((r = _spi.write(0xFF)) != 0xFE)
+     volatile uint32_t j;
+     j = 262144;
+     while(((r = _spi.write(0xFF)) != 0xFE) && (j))
      {
-         iprintf("0x%02X ", r);
+//         iprintf("0x%02X ", r);
+         j--;
 //         for (volatile uint32_t j = 262144; j; j--);
      }
+     if(r == 0xFE) {
+//         iprintf("Got start byte after waiting %lu, reading data\n",j);
 
-     iprintf("Got start byte, reading data\n");
+         // read data
+         for(int i=0; i<length; i++) {
+             buffer[i] = _spi.write(0xFF);
+         }
+         _spi.write(0xFF); // checksum
+         _spi.write(0xFF);
 
-    // read data
-    for(int i=0; i<length; i++) {
-        buffer[i] = _spi.write(0xFF);
-    }
-    _spi.write(0xFF); // checksum
-    _spi.write(0xFF);
-
-    _cs = 1;
-    _spi.write(0xFF);
-    return 0;
+         _cs = 1;
+         _spi.write(0xFF);
+         return 0;
+     } else {
+         //timed out
+         _cs = 1;
+         _spi.write(0xFF);
+         return -1;
+     }
 }
 
 int SDCard::_write(const char *buffer, int length) {
