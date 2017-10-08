@@ -40,6 +40,7 @@ private:
     Pin high_float_pin;
     Pin dump_valve_pin;
     Pin low_pressure_pump_pin;
+    Pin high_pressure_pump_pin;
 
     std::string low_water_detected_menu; //cutting_water_tank.low_water_detected_menu
     std::string high_water_detected_menu; //cutting_water_tank.high_water_detected_menu

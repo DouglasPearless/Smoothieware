@@ -45,7 +45,6 @@ CuttingWaterTank::CuttingWaterTank()
     fill_timer=0;
     dump_timer=0;
     seconds_elapsed=0;
- //   e_last_moved= NAN;
 }
 
 CuttingWaterTank::~CuttingWaterTank()
@@ -67,9 +66,11 @@ void CuttingWaterTank::on_module_loaded()
     //high_float detector
     high_float_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, high_float_pin_checksum)->by_default("nc" )->as_string())->as_input();
     //dump valve
-    dump_valve_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, dump_valve_pin_checksum)->by_default("nc" )->as_string())->as_input();
+    dump_valve_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, dump_valve_pin_checksum)->by_default("nc" )->as_string())->as_output();
     //low pressure pump
-    low_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, low_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_input();
+    low_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, low_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_output();
+    //high pressure pump
+    high_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, low_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_output();
 
     //now check for the menu definitions
     low_water_detected_menu =  THEKERNEL->config->value(cutting_water_tank_checksum, low_water_detected_menu_checksum)->by_default(0)->as_string();
@@ -78,7 +79,7 @@ void CuttingWaterTank::on_module_loaded()
 
     //we must have all the input and output pins and menus defined otherwise generate an error message and delete ourselves
     if (!middle_float_pin.connected() || !high_float_pin.connected() || !dump_valve_pin.connected() || !low_pressure_pump_pin.connected() ||
-        low_water_detected_menu.empty() || high_water_detected_menu.empty() || filters_blocked_menu.empty()) {
+        !high_pressure_pump_pin.connected() || low_water_detected_menu.empty() || high_water_detected_menu.empty() || filters_blocked_menu.empty()) {
       if (!middle_float_pin.connected())
         THEKERNEL->streams->printf("*ERROR* config missing definition for the cutting_water_tank.middle_float_pin\n");
       if (!high_float_pin.connected())
@@ -87,6 +88,8 @@ void CuttingWaterTank::on_module_loaded()
         THEKERNEL->streams->printf("*ERROR* config missing definition for the cutting_water_tank.dump_valve_pin\n");
       if (!low_pressure_pump_pin.connected())
           THEKERNEL->streams->printf("*ERROR* config missing definition for the cutting_water_tank.low_pressure_pump_pin\n");
+      if (!high_pressure_pump_pin.connected())
+          THEKERNEL->streams->printf("*ERROR* config missing definition for the cutting_water_tank.high_pressure_pump_pin\n");
       if (low_water_detected_menu.empty())
           THEKERNEL->streams->printf("*ERROR* config missing definition for the cutting_water_tank.low_water_detected_menu\n");
       if (high_water_detected_menu.empty())
@@ -113,6 +116,7 @@ void CuttingWaterTank::on_module_loaded()
     register_for_event(ON_MAIN_LOOP);
     register_for_event(ON_CONSOLE_LINE_RECEIVED);
     this->register_for_event(ON_GCODE_RECEIVED);
+    low_pressure_pump_pin.set(true); //start the low pressure pump
 }
 
 
@@ -141,11 +145,22 @@ void CuttingWaterTank::on_gcode_received(void *argument)
 {
     Gcode *gcode = static_cast<Gcode *>(argument);
     if (gcode->has_m) {
-        if (gcode->m == 1405) { // disable Cutting Water Tank
-            active= false;
-        }else if (gcode->m == 1406) { // enable Cutting Water Tank
-            active= true;
+        if (gcode->m == 1400) {
+            //print out the status of all the pins and outputs
+            gcode->stream->printf("suspended %s\n",              this->suspended ? "true" : "false");
+            gcode->stream->printf("middle_float_pin %s\n",       this->middle_float_pin.get() ? "on" : "off");
+            gcode->stream->printf("high_float_pin %s\n",         this->high_float_pin.get() ? "on" : "off");
+            gcode->stream->printf("dump_valve_pin %s\n",         this->dump_valve_pin.get() ? "on" : "off");
+            gcode->stream->printf("low_pressure_pump_pin %s\n",  this->low_pressure_pump_pin.get() ? "on" : "off");
+            gcode->stream->printf("high_pressure_pump_pin %s\n", this->high_pressure_pump_pin.get() ? "on" : "off");
 
+            gcode->stream->printf("fill_timer %f\n", this->fill_timer);
+            gcode->stream->printf("dump_timer %f\n", this->dump_timer);
+
+        } else if (gcode->m == 1405) { // disable Cutting Water Tank
+            active= false;
+        } else if (gcode->m == 1406) { // enable Cutting Water Tank
+            active= true;
         }
     }
 }
@@ -188,7 +203,7 @@ void CuttingWaterTank::clear_filter() {
 void CuttingWaterTank::on_main_loop(void *argument)
 {
     if (active ) {
-
+        bool error = false;
         //first lets determine if we have been idle for a very long time and there
         //is not enough water in the tank so the user needs to fill it before we start
         if(fill_timer > water_level_too_low_seconds) {
@@ -196,6 +211,7 @@ void CuttingWaterTank::on_main_loop(void *argument)
             low_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
             // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
             if(!suspended) {
+                error = true;
                 this->suspended= true;
                 // fire suspend command
                 this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -205,7 +221,8 @@ void CuttingWaterTank::on_main_loop(void *argument)
                 //tell the user
                 low_water();
             }
-        } else if(!middle_float_detected) {
+        }
+        if(!middle_float_detected) {
             //water is below the middle float level, need to fill up
             dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
             dump_timer = 0; //reset the dump_timer as we are filling
@@ -214,6 +231,7 @@ void CuttingWaterTank::on_main_loop(void *argument)
                 //is not enough water in the tank so the user needs to fill it before we start
                 // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
                 if(!suspended) {
+                    error = true;
                     this->suspended= true;
                     // fire suspend command
                     this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -225,7 +243,7 @@ void CuttingWaterTank::on_main_loop(void *argument)
                     low_water();
                 }
            }
-        } else if(middle_float_detected) {
+        } else {
             //water level level is above middle float level
             dump_valve_pin.set(true); //turn on the dump valve to let water out
             fill_timer = 0; //reset fill_timer as we are dumping
@@ -233,6 +251,7 @@ void CuttingWaterTank::on_main_loop(void *argument)
                   //the dump timer has been exceeded and the middle_float is still set
                   //this indicates the filters are blocked so tell the user
                   if(!suspended) {
+                      error = true;
                       this->suspended= true;
                       // fire suspend command
                       this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -244,14 +263,17 @@ void CuttingWaterTank::on_main_loop(void *argument)
                       clear_filter();
                   }
              }
-        } else if (high_float_detected) {
+        }
+        if (high_float_detected) {
             //danger the water has exceeded the maximum float, time to take drastic action
             dump_valve_pin.set(true); //turn on the dump valve to let water out
             if(!suspended) {
+                error = true;
                 this->suspended= true;
                 // fire suspend command
                 this->send_command( "M600", &(StreamOutput::NullStream) );
-                //TODO add logic to turn off the main high pressure pump and whatever else we need to do
+                //Turn off the main high pressure pump
+                high_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
             }
             //is the high_water menu being displayed?
             if (this->filters_blocked_menu.compare(THEKERNEL->current_path) !=0) {
@@ -259,10 +281,13 @@ void CuttingWaterTank::on_main_loop(void *argument)
                 //Note: when the user selects "OK" on the menu it must also issue an M601 or "resume"
                 high_water();
             }
-        } else {
+        }
+        if (error == false){
             // All good so reset the LEDs
             THEPANEL->lcd->setLed(LED_ORANGE, false);
             THEPANEL->lcd->setLed(LED_GREEN, true);
+            low_pressure_pump_pin.set(true); //start the low pressure pump
+            high_pressure_pump_pin.set(true); //start the high pressure pump
         }
     }
 }

@@ -527,23 +527,23 @@ void ST7565::setLed(int led, bool onoff)
 
     if(led == LED_HOT) {
         if(onoff)  {
-            red_led.set(true);
-            blue_led.set(false);
+            if (!red_led.get())  red_led.set(true);   //only turn  on if already off
+            if (blue_led.get()) blue_led.set(false); //only turn off if already on
         } else {
-            red_led.set(false);
-            blue_led.set(true);
+            if (red_led.get())  red_led.set(false);
+            if (!blue_led.get()) blue_led.set(true);
         }
     } else if(led == LED_ORANGE) {
         if(onoff)  {
-            orange_led.set(true);
+            if (!orange_led.get()) orange_led.set(true);
         } else {
-            orange_led.set(false);
+            if (orange_led.get()) orange_led.set(false);
         }
     } else if(led == LED_GREEN) {
         if(onoff)  {
-            green_led.set(true);
+            if (!green_led.get()) green_led.set(true);
         } else {
-            green_led.set(false);
+            if (green_led.get()) green_led.set(false);
         }
     }
 }
