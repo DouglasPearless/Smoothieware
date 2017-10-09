@@ -207,11 +207,11 @@ void CuttingWaterTank::on_main_loop(void *argument)
         //first lets determine if we have been idle for a very long time and there
         //is not enough water in the tank so the user needs to fill it before we start
         if(fill_timer > water_level_too_low_seconds) {
+            error = true;
             dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
             low_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
             // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
             if(!suspended) {
-                error = true;
                 this->suspended= true;
                 // fire suspend command
                 this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -227,11 +227,11 @@ void CuttingWaterTank::on_main_loop(void *argument)
             dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
             dump_timer = 0; //reset the dump_timer as we are filling
             if (fill_timer > fill_cycle_seconds) {
+                error = true;
                 //the fill timer has been exceeded and the middle_float is still not set so there
                 //is not enough water in the tank so the user needs to fill it before we start
                 // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
                 if(!suspended) {
-                    error = true;
                     this->suspended= true;
                     // fire suspend command
                     this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -246,12 +246,13 @@ void CuttingWaterTank::on_main_loop(void *argument)
         } else {
             //water level level is above middle float level
             dump_valve_pin.set(true); //turn on the dump valve to let water out
+            low_pressure_pump_pin.set(true); //start the low_pressure_pump_pin to help expel the water
             fill_timer = 0; //reset fill_timer as we are dumping
             if (dump_timer > filter_cleaning_seconds){
+                  error = true;
                   //the dump timer has been exceeded and the middle_float is still set
                   //this indicates the filters are blocked so tell the user
                   if(!suspended) {
-                      error = true;
                       this->suspended= true;
                       // fire suspend command
                       this->send_command( "M600", &(StreamOutput::NullStream) );
@@ -265,10 +266,11 @@ void CuttingWaterTank::on_main_loop(void *argument)
              }
         }
         if (high_float_detected) {
+            error = true;
             //danger the water has exceeded the maximum float, time to take drastic action
             dump_valve_pin.set(true); //turn on the dump valve to let water out
+            low_pressure_pump_pin.set(true); //start the low_pressure_pump_pin to help expel the water
             if(!suspended) {
-                error = true;
                 this->suspended= true;
                 // fire suspend command
                 this->send_command( "M600", &(StreamOutput::NullStream) );
