@@ -35,6 +35,9 @@ private:
     void low_water();
     void high_water();
     void clear_filter();
+    void start();
+    void resume();
+    void pause();
 
     Pin middle_float_pin;
     Pin high_float_pin;
@@ -47,14 +50,14 @@ private:
     std::string filters_blocked_menu;     //cutting_water_tank.filters_blocked_menu
 
     #define delay_seconds 20
-    float seconds_elapsed{0};
+    unsigned long int seconds_elapsed{0};
 
-    float fill_cycle_seconds{0};
-    float filter_cleaning_seconds{0};
-    float water_level_too_low_seconds{0};
+    unsigned long int fill_cycle_seconds{0};
+    unsigned long int filter_cleaning_seconds{0};
+    unsigned long int water_level_too_low_seconds{0};
 
-    float fill_timer{0};
-    float dump_timer{0};
+    unsigned long int fill_timer{0};
+    unsigned long int dump_timer{0};
 
     struct {
         bool middle_float_detected:1;

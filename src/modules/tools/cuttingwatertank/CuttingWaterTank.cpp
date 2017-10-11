@@ -25,6 +25,7 @@
 #define high_float_pin_checksum              CHECKSUM("high_float_pin")
 #define dump_valve_pin_checksum              CHECKSUM("dump_valve_pin")
 #define low_pressure_pump_pin_checksum       CHECKSUM("low_pressure_pump_pin")
+#define high_pressure_pump_pin_checksum      CHECKSUM("high_pressure_pump_pin")
 
 #define fill_cycle_seconds_checksum          CHECKSUM("fill_cycle_seconds")
 #define filter_cleaning_seconds_checksum     CHECKSUM("filter_cleaning_seconds")
@@ -70,7 +71,7 @@ void CuttingWaterTank::on_module_loaded()
     //low pressure pump
     low_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, low_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_output();
     //high pressure pump
-    high_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, low_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_output();
+    high_pressure_pump_pin.from_string( THEKERNEL->config->value(cutting_water_tank_checksum, high_pressure_pump_pin_checksum)->by_default("nc" )->as_string())->as_output();
 
     //now check for the menu definitions
     low_water_detected_menu =  THEKERNEL->config->value(cutting_water_tank_checksum, low_water_detected_menu_checksum)->by_default(0)->as_string();
@@ -116,7 +117,7 @@ void CuttingWaterTank::on_module_loaded()
     register_for_event(ON_MAIN_LOOP);
     register_for_event(ON_CONSOLE_LINE_RECEIVED);
     this->register_for_event(ON_GCODE_RECEIVED);
-    low_pressure_pump_pin.set(true); //start the low pressure pump
+    //low_pressure_pump_pin.set(true); //start the low pressure pump
 }
 
 
@@ -154,8 +155,8 @@ void CuttingWaterTank::on_gcode_received(void *argument)
             gcode->stream->printf("low_pressure_pump_pin %s\n",  this->low_pressure_pump_pin.get() ? "on" : "off");
             gcode->stream->printf("high_pressure_pump_pin %s\n", this->high_pressure_pump_pin.get() ? "on" : "off");
 
-            gcode->stream->printf("fill_timer %f\n", this->fill_timer);
-            gcode->stream->printf("dump_timer %f\n", this->dump_timer);
+            gcode->stream->printf("fill_timer %lu trigger limit %lu\n", this->fill_timer, this->fill_cycle_seconds);
+            gcode->stream->printf("dump_timer %lu trigger limit %lu\n", this->dump_timer, this->filter_cleaning_seconds);
 
         } else if (gcode->m == 1405) { // disable Cutting Water Tank
             active= false;
@@ -288,8 +289,8 @@ void CuttingWaterTank::on_main_loop(void *argument)
             // All good so reset the LEDs
             THEPANEL->lcd->setLed(LED_ORANGE, false);
             THEPANEL->lcd->setLed(LED_GREEN, true);
-            low_pressure_pump_pin.set(true); //start the low pressure pump
-            high_pressure_pump_pin.set(true); //start the high pressure pump
+//            low_pressure_pump_pin.set(true); //start the low pressure pump
+//            high_pressure_pump_pin.set(true); //start the high pressure pump
         }
     }
 }
@@ -300,7 +301,6 @@ void CuttingWaterTank::on_second_tick(void *argument)
   dump_timer++;
   seconds_elapsed++;
 }
-
 
 uint32_t CuttingWaterTank::button_tick(uint32_t dummy)
 {
@@ -321,3 +321,18 @@ uint32_t CuttingWaterTank::button_tick(uint32_t dummy)
     }
     return 0;
 }
+
+void CuttingWaterTank::start(void)
+    {
+
+    }
+
+void CuttingWaterTank::resume(void)
+    {
+
+    }
+
+void CuttingWaterTank::pause(void)
+    {
+
+    }
