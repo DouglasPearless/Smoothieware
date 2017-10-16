@@ -1,8 +1,0 @@
-label-en   Jogging: Increment
-label-fr   Deplacement: Increment
-label-es   Deplacar: Incremento
-
-is-title
-not-selectable
-
-

@@ -64,7 +64,7 @@ private:
     void low_water();
     void high_water();
     void clear_filter();
-    void start();
+    void play();
     void resume();
     void pause();
     void _run_mode();
@@ -108,11 +108,12 @@ private:
     void change_state(STATE new_state);
 
     struct {
+        bool debug:1;
         bool config_error:1;
         bool door_switch:1;
         bool middle_float_detected:1;
         bool high_float_detected:1;
-        bool suspended:1;
+        bool paused:1;
         bool active:1;
         bool error:1;
         bool fill_timer_start:1;

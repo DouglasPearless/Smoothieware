@@ -44,9 +44,10 @@
 
 WaterJetCutter::WaterJetCutter()
 {
+    debug = false;
     config_error=false; //as a sfety feature make sure all the inputs and outpus are defined
     active=true;     //is this module active?
-    suspended=false; //is Smoothie in a suspended state
+    paused=false; //is Smoothie in a suspended state
     door_switch=false;
     middle_float_detected=false;
     high_float_detected  =false;
@@ -88,9 +89,35 @@ void WaterJetCutter::on_set_public_data(void *argument)
 
     if(!pdr->starts_with(waterjetcutter_checksum)) return;
 
+    uint16_t t = *static_cast<uint16_t *>(pdr->get_data_ptr());
+    uint16_t rm = get_checksum("run-mode");  //TODO REMOVE THIS HARDWIRED AND CHANGE TO A LOOKUP
+    uint16_t mm = get_checksum("menu-mode");  //TODO REMOVE THIS HARDWIRED AND CHANGE TO A LOOKUP
+    uint16_t rtr = get_checksum("ready-to-run-mode");  //TODO REMOVE THIS HARDWIRED AND CHANGE TO A LOOKUP
+    uint16_t p_r_t = get_checksum("pause-resume-toggle"); //TODO REMOVE THIS HARDWIRED AND CHANGE TO A LOOKUP
+    if (t==rm)
+       this->change_state(RUN_MODE);
+    else if (t==mm)
+      this->change_state(MENU_MODE);
+    else if (t==rtr)
+      this->change_state(READY_TO_RUN_MODE);
+    else if (t==p_r_t) {
+        if (current_state == RUN_MODE)
+           this->change_state(PAUSE);
+    }
+    else
+      THEKERNEL->streams->printf("*ERROR* unknown state change received from the menu system, checksum is %i\n",t);
+    /*
+    string *s = static_cast<std::string *>(pdr->get_data_ptr());
 
-    STATE t = *static_cast<STATE *>(pdr->get_data_ptr());
-    this->change_state(t);
+    std::string message; //debug
+    if (s->size() > 40) {
+        message = s->substr(0, 40);
+    } else {
+        message= *s;
+    }
+*/
+    //STATE t = *static_cast<STATE *>(pdr->get_data_ptr());
+    //this->change_state(t);
     //this->switch_state = t;
     pdr->set_taken();
 /*
@@ -243,7 +270,10 @@ void WaterJetCutter::on_module_loaded()
     register_for_event(ON_SECOND_TICK);
     register_for_event(ON_MAIN_LOOP);
     register_for_event(ON_CONSOLE_LINE_RECEIVED);
-    this->register_for_event(ON_GCODE_RECEIVED);
+   // this->register_for_event(ON_GCODE_RECEIVED);
+    register_for_event(ON_GCODE_RECEIVED);
+    register_for_event(ON_SET_PUBLIC_DATA);
+    register_for_event(ON_GET_PUBLIC_DATA);
 }
 
 
@@ -258,31 +288,27 @@ void WaterJetCutter::send_command(std::string msg, StreamOutput *stream)
 // needed to detect when we resume
 void WaterJetCutter::on_console_line_received( void *argument )
 {
-    if(suspended) {
+//    if(suspended) {
       SerialMessage new_message = *static_cast<SerialMessage *>(argument);
       string possible_command = new_message.message;
       string cmd = shift_parameter(possible_command);
       if(cmd == "resume" || cmd == "M601") {
-          suspended= false;
+          paused= false;
       }
-   }
+//   }
 }
 
 void WaterJetCutter::on_gcode_received(void *argument)
 {
     Gcode *gcode = static_cast<Gcode *>(argument);
-    if (gcode->has_m) {
-        if(gcode->m == 1403){ //prepare to receive G-codes from the host program
-           change_state(RUN_MODE); //change to MENU_MODE later in development
-        } else if (gcode->m == 1404) { //end of G-codes from the host program
-            change_state(END_JOB);
-        } else if (gcode->m == 1400) { //print out the status of all the pins and outputs
+    if (gcode->has_m){
+        if (gcode->m == 1400){ //print out the status of all the pins and outputs
             if (!validate_config())
               gcode->stream->printf("Fatal Config Errors, WaterJet Cutter will not operate with \\sd\\config file errors\n");
             gcode->stream->printf("Previous State was "); printf_state(gcode,this->previous_state);  gcode->stream->printf("\n");
             gcode->stream->printf("Current  State  is "); printf_state(gcode,this->current_state); gcode->stream->printf("\n");
             gcode->stream->printf("active %s\n",                 this->active ? "true" : "false");
-            gcode->stream->printf("suspended %s\n",              this->suspended ? "true" : "false");
+            gcode->stream->printf("paused %s\n",                 this->paused ? "true" : "false");
             gcode->stream->printf("middle_float_pin %s\n",       this->middle_float_pin.get() ? "on" : "off");
             gcode->stream->printf("high_float_pin %s\n",         this->high_float_pin.get() ? "on" : "off");
             gcode->stream->printf("dump_valve_pin %s\n",         this->dump_valve_pin.get() ? "on" : "off");
@@ -291,17 +317,26 @@ void WaterJetCutter::on_gcode_received(void *argument)
             gcode->stream->printf("fill_timer %lu trigger limit %lu\n", this->fill_timer, this->fill_cycle_seconds);
             gcode->stream->printf("dump_timer %lu trigger limit %lu\n", this->dump_timer, this->filter_cleaning_seconds);
             gcode->stream->printf("M1401 to enable this module\n");
-            gcode->stream->printf("M1402 to stop this module\n");
+            gcode->stream->printf("M1402 to disable this module\n");
             gcode->stream->printf("M1403 is required at the very start of the stream of G-codes to turn on  the water and abrasive\n");
             gcode->stream->printf("M1404 to required at the very  end  of the stream of G-codes to turn off the water and abrasive\n");
-
-
+//            gcode->stream->printf("M1405 to run on debug mode which issues a M1400 every second\n");
+//            gcode->stream->printf("M1406 to disable debug mode\n");
         } else if (gcode->m == 1401) { // disable Cutting Water Tank
-            this->start();
+            active=true;
         } else if (gcode->m == 1402) { // enable Cutting Water Tank
             active= false;
-        }
-    }
+        } else if (gcode->m == 1403){ //prepare to receive G-codes from the host program
+            change_state(RUN_MODE); //change to MENU_MODE later in development
+        } else if (gcode->m == 1404) { //end of G-codes from the host program
+            change_state(END_JOB);
+        } else if (gcode->m == 1405) { // enable debug mode
+            debug = true;
+        } else if (gcode->m == 1406) { // disable debug mode
+            debug = false;
+        } else gcode->stream->printf("M-Code %d ignored\n", gcode->m);
+    } else if (gcode->has_g)
+      gcode->stream->printf("G-Code %d ignored\n", gcode->g);
 }
 
 void WaterJetCutter::low_water() {
@@ -365,10 +400,10 @@ void WaterJetCutter::on_main_loop(void *argument)
 
             break;
           case PAUSE:          //pause, this stops motion, high pressue water, abrasive ?what happens to the fill and dump timers, low pressure pump etc??
-
+            pause();
             break;
           case RESUME:         //back to RUN_GCODE_MODE_AND_WATCH_WATER_LEVEL (typically)
-
+            this->change_state(RUN_MODE);
             break;
           case END_JOB:        //this is like PAUSE but it can only return to the MENU_MODE as it is intended to complete the job, triggered by a M1404 from the host
 
@@ -409,19 +444,15 @@ void WaterJetCutter::_run_mode(void)
 
   if(!middle_float_detected)
   {
-    if (!fill_timer_run)
+    if (!fill_timer_run) {
       fill_timer_start=true;  //if the timer is not running, start the timer from 0
+    }
     dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
     if (fill_timer > fill_cycle_seconds) {
         error = true;
         //the fill timer has been exceeded and the middle_float is still not set so there
         //is not enough water in the tank so the user needs to fill it before we start
         // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
-        if(!suspended) {
-            this->suspended= true;
-            // fire suspend / pause command
-            this->send_command( "M600", &(StreamOutput::NullStream) );
-        }
         this->pause();
         //is the low_water menu being displayed?
         if (this->error_wl_low_menu.compare(THEKERNEL->current_path) !=0) {
@@ -442,11 +473,7 @@ void WaterJetCutter::_run_mode(void)
         error = true;
         //the dump timer has been exceeded and the middle_float is still set
         //this indicates the filters are blocked so tell the user
-        if(!suspended) {
-            this->suspended= true;
-            // fire suspend command
-            this->send_command( "M600", &(StreamOutput::NullStream) );
-        }
+        this->pause();
         //is the clear_filter menu being displayed?
         if (this->error_clean_filters_menu.compare(THEKERNEL->current_path) !=0)
           {
@@ -462,15 +489,8 @@ void WaterJetCutter::_run_mode(void)
         //danger the water has exceeded the maximum float, time to take drastic action
         dump_valve_pin.set(true); //turn on the dump valve to let water out
         low_pressure_pump_pin.set(true); //start the low_pressure_pump_pin to help expel the water
-        if(!suspended)
-        {
-            this->suspended= true;
-            // fire suspend command
-            this->send_command( "M600", &(StreamOutput::NullStream) );
-            //Turn off the main high pressure pump
-            high_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
-        }
-          //is the high_water menu being displayed?
+        this->pause();
+        //is the high_water menu being displayed?
         if (this->error_wl_high_menu.compare(THEKERNEL->current_path) !=0)
           {
             //tell the user
@@ -484,112 +504,18 @@ void WaterJetCutter::_run_mode(void)
       THEPANEL->lcd->setLed(LED_ORANGE, false);
       THEPANEL->lcd->setLed(LED_GREEN, true);
     }
-}
-              /*
-      if ((active ) && (current_state==WAITING_FOR_WATER_LEVEL_TO_RAISE)){
-          bool error = false;
-          //first lets determine if we have been idle for a very long time and there
-          //is not enough water in the tank so the user needs to fill it before we start
-          if(fill_timer > water_level_too_low_seconds) {
-              error = true;
-              dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
-              low_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
-              // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
-              if(!suspended) {
-                  this->suspended= true;
-                  // fire suspend command
-                  this->send_command( "M600", &(StreamOutput::NullStream) );
-              }
-              //is the low_water menu being displayed?
-              if (this->filters_blocked_menu.compare(THEKERNEL->current_path) !=0) {
-                  //tell the user
-                  low_water();
-              }
-          }
-          if(!middle_float_detected) {
-              //water is below the middle float level, need to fill up
-              dump_valve_pin.set(false); //turn off the dump valve so no more water leaves
-              fill_timer_run = true;  //turn on the fill timer as we are filling
-              dump_timer_run = false; //turn off the dump_timer as we are filling
-              if (fill_timer > fill_cycle_seconds) {
-                  error = true;
-                  //the fill timer has been exceeded and the middle_float is still not set so there
-                  //is not enough water in the tank so the user needs to fill it before we start
-                  // fire suspend command so Smoothie will not process any G or M-Codes until this is fixed
-                  if(!suspended) {
-                      this->suspended= true;
-                      // fire suspend command
-                      this->send_command( "M600", &(StreamOutput::NullStream) );
-                  }
-                  this->pause();
-                  //is the low_water menu being displayed?
-                  if (this->filters_blocked_menu.compare(THEKERNEL->current_path) !=0) {
-                      //tell the user
-                      //Note: when the user selects "OK" on the menu it must also issue an M601 or "resume"
-                      low_water();
-                  }
-             }
-          } else {
-              //water level level is above middle float level
-              dump_valve_pin.set(true); //turn on the dump valve to let water out
-              low_pressure_pump_pin.set(true); //start the low_pressure_pump_pin to help expel the water
-              fill_timer_run = false; //turn off the fill_timer as we are dumping
-              dump_timer_run = true;  //turn on the dump timer
-              if (dump_timer > filter_cleaning_seconds){ //YYY seconds
-                    error = true;
-                    //the dump timer has been exceeded and the middle_float is still set
-                    //this indicates the filters are blocked so tell the user
-                    if(!suspended) {
-                        this->suspended= true;
-                        // fire suspend command
-                        this->send_command( "M600", &(StreamOutput::NullStream) );
-                    }
-                    //is the clear_filter menu being displayed?
-                    if (this->filters_blocked_menu.compare(THEKERNEL->current_path) !=0) {
-                        //tell the user
-                        //Note: when the user selects "OK" on the menu it must also issue an M601 or "resume"
-                        clear_filter();
-                    }
-               }
-          }
-          if (high_float_detected) {
-              error = true;
-              //danger the water has exceeded the maximum float, time to take drastic action
-              dump_valve_pin.set(true); //turn on the dump valve to let water out
-              low_pressure_pump_pin.set(true); //start the low_pressure_pump_pin to help expel the water
-              if(!suspended) {
-                  this->suspended= true;
-                  // fire suspend command
-                  this->send_command( "M600", &(StreamOutput::NullStream) );
-                  //Turn off the main high pressure pump
-                  high_pressure_pump_pin.set(false); //stop the low_pressure_pump_pin in case there is far too little water
-              }
-              //is the high_water menu being displayed?
-              if (this->filters_blocked_menu.compare(THEKERNEL->current_path) !=0) {
-                  //tell the user
-                  //Note: when the user selects "OK" on the menu it must also issue an M601 or "resume"
-                  high_water();
-              }
-          }
-          if (error == false){
-              // All good so reset the LEDs
-              THEPANEL->lcd->setLed(LED_ORANGE, false);
-              THEPANEL->lcd->setLed(LED_GREEN, true);
-  //            low_pressure_pump_pin.set(true); //start the low pressure pump
-  //            high_pressure_pump_pin.set(true); //start the high pressure pump
-          }
-      }
-      */
+  }
 }
 
 void WaterJetCutter::on_second_tick(void *argument)
 {
-  if ((!active) || (suspended)) return;
+  if ((!active) || (paused)) return;
 
   if (fill_timer_start) {
       fill_timer_start = false;
       fill_timer_run = true;
       fill_timer = 0;
+      dump_timer_run = false; //force it to stop
   }
   if (fill_timer_stop) {
       fill_timer_stop = false;
@@ -600,6 +526,7 @@ void WaterJetCutter::on_second_tick(void *argument)
       dump_timer_start = false;
       dump_timer_run = true;
       dump_timer = 0;
+      fill_timer_run = false; //force it to stop
   }
   if (dump_timer_stop) {
       dump_timer_stop = false;
@@ -628,6 +555,12 @@ void WaterJetCutter::on_second_tick(void *argument)
   if (spent_abrasive_timer_run)  spent_abrasive_timer++;
 
   seconds_elapsed++;
+/*
+  if (debug) {
+    Gcode gc("M42", &(StreamOutput::NullStream));  // send a gcode to the kernel for processing DHP
+    THEKERNEL->call_event(ON_GCODE_RECEIVED, &gc);
+  }
+*/
 }
 
 uint32_t WaterJetCutter::button_tick(uint32_t dummy)
@@ -646,7 +579,7 @@ uint32_t WaterJetCutter::button_tick(uint32_t dummy)
     return 0;
 }
 
-void WaterJetCutter::start(void)
+void WaterJetCutter::play(void)
 {
   active= true;
   /*
@@ -654,8 +587,20 @@ Check to see if "Input 11" is activated
    If yes, then continue
    If no, then display "Close Door" for 5 seconds and return to previous state
    */
+
+  if (this->paused) return; // paused
+
+  THEPANEL->lcd->setLed(LED_ORANGE, false);
+  THEPANEL->lcd->setLed(LED_GREEN, true);
   abrasive_hopper_timer_run = true; //Start the "Abrasive Hopper Timer"
   spent_abrasive_timer_run = true;  //Start the "Spent Abrasive Timer"
+  //Note we need to convert these to direct pin control as M-codes are suspended at this point!!
+  this->send_command( "M5", &(StreamOutput::NullStream) ); //M5 #turn the HP valve off
+  this->send_command( "M42", &(StreamOutput::NullStream) ); //M42 #Turn the SSR/electric motor/pump on
+  this->send_command( "M46", &(StreamOutput::NullStream) ); //M46 #turn the vibration motors on
+  this->send_command( "G4 S1.0", &(StreamOutput::NullStream) ); //G4 S2. #pause to allow abrasive in the line to flush
+  this->send_command( "M3", &(StreamOutput::NullStream) ); //M3 #open high pressure valve so water jet starts
+  this->send_command( "M8", &(StreamOutput::NullStream) ); //M8 #turn the abrasive feed on
 }
 
 void WaterJetCutter::resume(void)
@@ -674,11 +619,19 @@ Check to see if "Input 11" is activated
   this->send_command( "G4 S1.0", &(StreamOutput::NullStream) ); //G4 S1.0 #Pause to allow for pressure to be built up
   this->send_command( "M3", &(StreamOutput::NullStream) ); //M3 #open high pressure valve so water jet starts
   this->send_command( "M8", &(StreamOutput::NullStream) ); //M8 #turn the abrasive feed on
-    }
+}
 
 void WaterJetCutter::pause(void)
 {
+  if (this->paused) return; //already paused
+
+  this->paused= true;
+  THEPANEL->lcd->setLed(LED_ORANGE, true);
+  THEPANEL->lcd->setLed(LED_GREEN, false);
   this->send_command( "M600", &(StreamOutput::NullStream) ); // fire suspend command
+  abrasive_hopper_timer_run = false; //Stop the "Abrasive Hopper Timer"
+  spent_abrasive_timer_run = false;  //Stop the "Spent Abrasive Timer"
+
   //Note we need to convert these to direct pin control as M-codes are suspended at this point!!
   this->send_command( "M9", &(StreamOutput::NullStream) ); //M9 #turn the abrasive feed off
   this->send_command( "G4 S2.0", &(StreamOutput::NullStream) ); //G4 S2. #pause to allow abrasive in the line to flush

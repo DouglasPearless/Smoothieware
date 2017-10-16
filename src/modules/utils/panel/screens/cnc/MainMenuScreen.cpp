@@ -161,7 +161,7 @@ void MainMenuScreen::display_menu_line(uint16_t line)
               label = label.substr(0,file_index_str_1); //remove the *s or *S
 
               char buffer [sizeof(file_selected_size)*8+1]; //allocate a temporary buffer to convert a number to a string as to_string() is not supported
-              sprintf(buffer, "%d", file_selected_size);
+              sprintf(buffer, "%lu", file_selected_size);
               string size_str = buffer;
               //std::string size_str = "487";
               label.append(size_str);
@@ -431,6 +431,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                                 if (the_action_checksum[i]==0) {
                                     the_action_checksum[i] = get_checksum(tokens[1]);
                                     the_action_parameter[i] = tokens[2]; //save it
+                                    break;
                                 }
                               }
 
@@ -473,7 +474,7 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
               }
               //only_if_file_is_gcode
               if ( only_if_file_is_gcode_token) {
-                  bool found_gcode;
+                  bool found_gcode = false;
                   std::size_t found_place = file_selected.rfind(".gcode");
 
                   if (found_place!=std::string::npos) // if we found something, make sure the file ends in ".gcode" and not something like ".gcode.txt"
@@ -563,14 +564,13 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
       for (uint16_t i = 0; i < number_of_actions; i++ ) {
         if (the_action_checksum[i]!=0) {
              if (the_action_checksum[i]==state_checksum){
-                 this->change_state(&the_action_parameter[i]);
+                 this->change_state(get_checksum(the_action_parameter[i]));//possible state change
+             } else if (the_action_checksum[i]==run_command_checksum) {
+                 this->run_command(&the_action_parameter[i]); //run the command
              } else if (the_action_checksum[i]==goto_menu_checksum){
-                 //now navigate to the new menu.
-                 this->enter_folder(the_action_parameter[i]); //state_checksum
+                 this->enter_folder(the_action_parameter[i]); //now navigate to the new menu.
              } else if (the_action_checksum[i]==goto_watch_screen_checksum) {
                  THEPANEL->enter_screen(this->watch_screen);
-             } else if (the_action_checksum[i]==run_command_checksum) {
-                 this->run_command(&the_action_parameter[i]);//run the command
              }
          } else if (THEPANEL->is_file_mode()){  //TODO WE HAVE A BUG HERE WHERE THE LIST OF FILES HAS NOT BEEN DISPLAYED SO THE FILE SELECTION IS EMPTY
              //file-select the user has selected a GCODE file and we now need to display a menu to allow an action to be performed on that file
@@ -580,9 +580,11 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
    }
 }
 
-void MainMenuScreen:: change_state(std::string *the_action_parameter)
+void MainMenuScreen::change_state(uint16_t new_state)
 {
-  bool ok = PublicData::set_value(waterjetcutter_checksum, the_action_parameter); //tell the waterjet cutter about a new menu state
+
+  bool ok = PublicData::set_value(waterjetcutter_checksum, &new_state); //tell the waterjet cutter about a new menu state
+
 }
 void MainMenuScreen::run_command(std::string *the_action_parameter) {
   //the_action_parameter contains the action (nominally "play" or "rm") and file_selected contains the file to perform the action on

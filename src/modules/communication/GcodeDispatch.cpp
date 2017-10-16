@@ -109,7 +109,8 @@ try_again:
             }
             //Strip line number value from possible_command
             size_t lnsize = possible_command.find_first_not_of("N0123456789.,- ");
-            possible_command = possible_command.substr(lnsize);
+            if (lnsize != string::npos)  //DHP - otherwise substr causes an __throw_out_of_range() error
+              possible_command = possible_command.substr(lnsize);
 
         } else {
             //Assume checks succeeded

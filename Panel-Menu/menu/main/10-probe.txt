@@ -1,6 +1,0 @@
-label-en   Probe
-label-fr   Palper
-label-es   Probar
-
-action goto-menu /sd/panel/menu/probe/
-

@@ -1,6 +1,0 @@
-label-en   Size: *s
-label-fr   Taille: *s
-label-es   Tamano: *s
-
-not-selectable
-

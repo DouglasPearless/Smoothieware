@@ -30,7 +30,7 @@ class MainMenuScreen : public PanelScreen {
 //        PanelScreen* file_screen;
 //        PanelScreen* jog_screen;
 //        PanelScreen* prepare_screen;
-        void change_state(std::string *state);
+        void change_state(uint16_t new_state);
         void play(const char *path);
         void abort_playing();
         void setupConfigureScreen();
@@ -55,7 +55,7 @@ class MainMenuScreen : public PanelScreen {
         uint16_t filename_index;
         std::string label;
         std::string title;
-#define number_of_actions 2
+#define number_of_actions 4
         //uint16_t  the_action_checksum;
         std::array<uint16_t,number_of_actions> the_action_checksum;
 
