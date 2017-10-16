@@ -20,6 +20,7 @@
 //Actions
 #define action_checksum                         CHECKSUM("action")
 //actual actions as second parameter to an "action" are:
+#define state_checksum                          CHECKSUM("state")
 #define goto_menu_checksum                      CHECKSUM("goto-menu")
 #define goto_watch_screen_checksum              CHECKSUM("goto-watch-screen")
 #define run_command_checksum                    CHECKSUM("run-command")

@@ -18,7 +18,7 @@
 #include "modules/tools/switch/SwitchPool.h"
 #include "modules/tools/temperatureswitch/TemperatureSwitch.h"
 #include "modules/tools/countertimer/CounterTimer.h"
-#include "modules/tools/cuttingwatertank/CuttingWaterTank.h"
+#include "modules/tools/waterjetcutter/WaterJetCutter.h"
 #include "modules/tools/drillingcycles/Drillingcycles.h"
 #include "FilamentDetector.h"
 #include "MotorDriverControl.h"
@@ -73,6 +73,7 @@
 
 //    extern "C" void mbed_mac_address(char *s);
     uint64_t uid = 0;
+    uint32_t rubbish;
 
     char mac[6];
 
@@ -201,9 +202,9 @@ void init() {
     #ifndef NO_UTILS_MOTORDRIVERCONTROL
     kernel->add_module( new MotorDriverControl(0) );
     #endif
-    #ifndef NO_TOOLS_CUTTINGWATERTANK
-    kernel->add_module( new(AHB0) CuttingWaterTank() );
-    //kernel->add_module( new CuttingWaterTank() );
+    #ifndef NO_TOOLS_WATERJETCUTTER
+    kernel->add_module( new(AHB0) WaterJetCutter() );
+    //kernel->add_module( new WaterJetCutter() );
     #endif
     #ifndef NO_TOOLS_COUNTERTIMER
     // Ideally loaded last

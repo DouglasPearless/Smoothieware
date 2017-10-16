@@ -271,7 +271,10 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
 	            //file_select=false;  //This is set per menu not per menu line
 	            file_select_conditional=true;
 	            action_token=false;
-	            the_action_checksum=0;
+	            for (uint16_t i = 0; i < number_of_actions; i++ ) {
+	              the_action_checksum[i]=0;
+	              the_action_parameter[i].clear(); //empty the string
+	            }
 	            action=false;
 	            action_conditional=true;
 	            label = "";
@@ -421,10 +424,18 @@ bool MainMenuScreen::parse_menu_line(uint16_t line)
                           if(tokens.size()>=2) {
                               // tokens[1] contains the first parameter for the action
                               // tokens[2] contains the optional second parameter
-                              the_action_checksum = get_checksum(tokens[1]);
-                              the_action_parameter = tokens[2];
+                              //the_action_checksum = get_checksum(tokens[1]);
+                              //the_action_parameter = tokens[2];
+
+                              for (uint16_t i = 0; i < number_of_actions; i++ ) {
+                                if (the_action_checksum[i]==0) {
+                                    the_action_checksum[i] = get_checksum(tokens[1]);
+                                    the_action_parameter[i] = tokens[2]; //save it
+                                }
+                              }
+
                               action = true;
-                              //NOTE: Only one action is supported, and if more than one, only the last one is 'actioned'
+                              //NOTE: be careful as the actions are executed in the order listed in the menu
                           }
                       } else if(tokens[0].substr(0,1).compare("#")==0) {
                           // A comment, skip
@@ -547,24 +558,36 @@ void MainMenuScreen::clicked_menu_entry(uint16_t line)
  }
 
   if (found) { // a file was found
+      // now cycle through the actions
 
-      if (the_action_checksum==goto_menu_checksum){
-           //now navigate to the new menu.
-           this->enter_folder(the_action_parameter);
-       } else if (the_action_checksum==goto_watch_screen_checksum){
-           THEPANEL->enter_screen(this->watch_screen);
-       } else if (the_action_checksum==run_command_checksum) {
-           this->run_command();//run the command
-       } else if (THEPANEL->is_file_mode()){
-           //file-select the user has selected a GCODE file and we now need to display a menu to allow an action to be performed on that file
-           this->process_file_gcode(line);  //we only exit file mode when a file selection is made or we exit the directory
-       }
+      for (uint16_t i = 0; i < number_of_actions; i++ ) {
+        if (the_action_checksum[i]!=0) {
+             if (the_action_checksum[i]==state_checksum){
+                 this->change_state(&the_action_parameter[i]);
+             } else if (the_action_checksum[i]==goto_menu_checksum){
+                 //now navigate to the new menu.
+                 this->enter_folder(the_action_parameter[i]); //state_checksum
+             } else if (the_action_checksum[i]==goto_watch_screen_checksum) {
+                 THEPANEL->enter_screen(this->watch_screen);
+             } else if (the_action_checksum[i]==run_command_checksum) {
+                 this->run_command(&the_action_parameter[i]);//run the command
+             }
+         } else if (THEPANEL->is_file_mode()){  //TODO WE HAVE A BUG HERE WHERE THE LIST OF FILES HAS NOT BEEN DISPLAYED SO THE FILE SELECTION IS EMPTY
+             //file-select the user has selected a GCODE file and we now need to display a menu to allow an action to be performed on that file
+             this->process_file_gcode(line);  //we only exit file mode when a file selection is made or we exit the directory
+         }
+      }
    }
 }
 
-void MainMenuScreen::run_command() {
+void MainMenuScreen:: change_state(std::string *the_action_parameter)
+{
+  bool ok = PublicData::set_value(waterjetcutter_checksum, the_action_parameter); //tell the waterjet cutter about a new menu state
+}
+void MainMenuScreen::run_command(std::string *the_action_parameter) {
   //the_action_parameter contains the action (nominally "play" or "rm") and file_selected contains the file to perform the action on
-  std::string action_this = the_action_parameter;
+  std::string action_this;
+  action_this.append(the_action_parameter->c_str());
   action_this.append(" ");
   action_this.append(current_gcode_dir);
   action_this.append("/");

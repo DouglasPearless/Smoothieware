@@ -13,6 +13,8 @@
 #define max_path_length 32
 #define menu_root "/sd/panel/menu/main"  //this must exist on the SD card
 
+#define waterjetcutter_checksum              CHECKSUM("waterjetcutter")
+
 class MainMenuScreen : public PanelScreen {
     public:
         MainMenuScreen();
@@ -28,11 +30,11 @@ class MainMenuScreen : public PanelScreen {
 //        PanelScreen* file_screen;
 //        PanelScreen* jog_screen;
 //        PanelScreen* prepare_screen;
-
+        void change_state(std::string *state);
         void play(const char *path);
         void abort_playing();
         void setupConfigureScreen();
-        void run_command();
+        void run_command(std::string *the_action_parameter);
         void enter_folder(std::string folder);
         uint16_t count_folder_content();
         std::string file_at(uint16_t line, bool& isdir);
@@ -53,8 +55,12 @@ class MainMenuScreen : public PanelScreen {
         uint16_t filename_index;
         std::string label;
         std::string title;
-        uint16_t  the_action_checksum;
-        std::string the_action_parameter;
+#define number_of_actions 2
+        //uint16_t  the_action_checksum;
+        std::array<uint16_t,number_of_actions> the_action_checksum;
+
+        std::array<std::string,number_of_actions> the_action_parameter;
+        //std::string the_action_parameter;
         FILE* current_file_handler;
         volatile struct {
             bool file_mode:1;
@@ -98,5 +104,6 @@ class MainMenuScreen : public PanelScreen {
             bool action_conditional:1;
         };
         friend class CounterTimer;
+        friend class WaterJetCutter;
 };
 #endif

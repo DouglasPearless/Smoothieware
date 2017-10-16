@@ -183,7 +183,7 @@ class Panel : public Module {
             int encoder_click_resolution:3;
         };
         friend class CounterTimer;
-        friend class CuttingWaterTank;
+        friend class WaterJetCutter;
 };
 
 #endif

@@ -81,6 +81,7 @@ protected:
         // this flag asserts when we are doing this
         bool flush_to_nl:1;
     };
+    friend class SerialConsole;
 
 private:
     USB *usb;
